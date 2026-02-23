@@ -2,11 +2,13 @@
 Клиент Supabase для бота.
 Инициализация из SUPABASE_URL и SUPABASE_KEY.
 """
+import logging
 import os
 from datetime import datetime, timezone
 from typing import Optional
 from supabase import create_client, Client
 
+logger = logging.getLogger(__name__)
 _client: Optional[Client] = None
 
 
@@ -60,7 +62,8 @@ def create_player(
         if r.data and len(r.data) > 0:
             return r.data[0]
         return None
-    except Exception:
+    except Exception as e:
+        logger.exception("create_player failed: %s", e)
         return None
 
 
