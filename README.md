@@ -54,6 +54,8 @@ WEBAPP_URL=https://yourusername.github.io/репозиторий/tennis-league/
 - **ADMIN_TELEGRAM_ID** — ваш Telegram ID (например, из [@userinfobot](https://t.me/userinfobot)), для админ-команд и отчёта о закрытии тура.
 - **WEBAPP_URL** — URL Mini App после деплоя на GitHub Pages.
 
+**Саморегистрация по /start без миграции в Supabase:** если вы не применяете миграцию `003_allow_insert_players.sql`, в `SUPABASE_KEY` нужно указать ключ **service_role** (Supabase → Settings → API → service_role secret). Тогда RLS не блокирует вставку в таблицу `players`, и игроки смогут регистрироваться по команде /start. Ключ service_role храните только в `bot/.env`, не используйте его во фронтенде.
+
 ### Фронтенд (`frontend/.env`)
 
 Скопируйте `frontend/.env.example` в `frontend/.env`:
