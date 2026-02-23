@@ -35,9 +35,8 @@ jobs:
           npm ci
           npm run build
         env:
-          # Add in repo Settings → Secrets and variables → Actions: VITE_SUPABASE_URL, VITE_SUPABASE_KEY (anon public)
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_KEY }}
+          VITE_SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_KEY }}
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@3

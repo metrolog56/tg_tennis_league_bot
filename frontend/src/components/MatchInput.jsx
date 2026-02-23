@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Listbox, Transition, Dialog } from '@headlessui/react'
 import { Fragment } from 'react'
 import { submitMatchResult } from '../api/supabase'
-import { calculateMatchRating } from '../utils/ratingCalc'
+import { previewRatingChange } from '../utils/ratingCalc'
 
 function ChevronIcon() {
   return (
@@ -18,6 +18,7 @@ export default function MatchInput({
   currentPlayerId,
   currentPlayerRating,
   opponents,
+  existingMatchesByOpponentId = {},
   onClose,
   onSaved,
 }) {
@@ -26,26 +27,23 @@ export default function MatchInput({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  const opponentList = opponents || []
+  const opponentList = (opponents || []).filter(
+    (p) => (existingMatchesByOpponentId || {})[p.id] !== 'played'
+  )
+  const alreadyPlayedWithSelected = selectedOpponent && (existingMatchesByOpponentId || {})[selectedOpponent.id] === 'played'
   const myRating = Number(currentPlayerRating) || 100
   const oppRating = Number(selectedOpponent?.rating) || 100
 
   let preview = null
   if (scoreChoice && selectedOpponent) {
     const [mySets, oppSets] = scoreChoice
-    const isWinner = mySets > oppSets
-    const { deltaWinner, deltaLoser } = calculateMatchRating(
-      isWinner ? myRating : oppRating,
-      isWinner ? oppRating : myRating,
-      isWinner ? mySets : oppSets,
-      isWinner ? oppSets : mySets,
-      divisionCoef
-    )
-    const myDelta = isWinner ? deltaWinner : deltaLoser
-    preview = {
-      text: `${mySets}:${oppSets}`,
-      myDelta,
-      newRating: myRating + myDelta,
+    const result = previewRatingChange(myRating, oppRating, mySets, oppSets, divisionCoef)
+    if (result) {
+      preview = {
+        text: `${mySets}:${oppSets}`,
+        myDelta: result.myDelta,
+        newRating: result.newRating,
+      }
     }
   }
 
@@ -88,6 +86,13 @@ export default function MatchInput({
             Внести результат матча
           </Dialog.Title>
 
+          {opponentList.length === 0 ? (
+            <p className="text-[var(--tg-theme-hint-color)] mb-4">Все матчи с соперниками уже внесены.</p>
+          ) : (
+          <>
+          {alreadyPlayedWithSelected && (
+            <p className="text-amber-600 text-sm mb-2">Матч с этим соперником уже внесён. Выберите другого.</p>
+          )}
           <div className="mb-4">
             <label className="block text-sm font-medium mb-1 text-[var(--tg-theme-hint-color)]">
               Соперник
@@ -137,7 +142,7 @@ export default function MatchInput({
             </Listbox>
           </div>
 
-          {selectedOpponent && (
+          {selectedOpponent && !alreadyPlayedWithSelected && (
             <div className="mb-4">
               <label className="block text-sm font-medium mb-2 text-[var(--tg-theme-hint-color)]">
                 Счёт (вы — соперник)
@@ -190,7 +195,7 @@ export default function MatchInput({
             </div>
           )}
 
-          {preview && (
+          {preview && !alreadyPlayedWithSelected && (
             <div
               className="mb-4 p-3 rounded-lg text-sm"
               style={{ background: 'var(--tg-theme-secondary-bg-color)' }}
@@ -218,7 +223,7 @@ export default function MatchInput({
             <button
               type="button"
               onClick={handleConfirm}
-              disabled={!preview || saving}
+              disabled={!preview || saving || alreadyPlayedWithSelected}
               className="flex-1 py-3 rounded-xl font-medium text-white disabled:opacity-50"
               style={{
                 background: 'var(--tg-theme-button-color)',
@@ -228,6 +233,8 @@ export default function MatchInput({
               {saving ? 'Сохранение...' : 'Подтвердить'}
             </button>
           </div>
+          </>
+          )}
         </Dialog.Panel>
       </div>
     </Dialog>

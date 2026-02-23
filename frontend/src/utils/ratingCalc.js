@@ -25,3 +25,26 @@ export function calculateMatchRating(winnerRating, loserRating, winnerSets, lose
 export function calcRatingDelta(ratingWinner, ratingLoser, divisionCoef, setsWinner, setsLoser) {
   return calculateMatchRating(ratingWinner, ratingLoser, setsWinner, setsLoser, divisionCoef)
 }
+
+/**
+ * Превью изменения рейтинга для текущего игрока (для MatchInput).
+ * @returns { { myDelta: number, newRating: number } | null } null если счёт невалидный (не Best of 5)
+ */
+export function previewRatingChange(myRating, opponentRating, mySets, oppSets, kd) {
+  const a = Number(mySets)
+  const b = Number(oppSets)
+  const validScores = [[3, 0], [3, 1], [3, 2], [2, 3], [1, 3], [0, 3]]
+  const valid = validScores.some(([x, y]) => x === a && y === b)
+  if (!valid) return null
+  const myR = Number(myRating) || 100
+  const oppR = Number(opponentRating) || 100
+  if (a > b) {
+    const { deltaWinner, deltaLoser } = calculateMatchRating(myR, oppR, a, b, Number(kd) || 0.25)
+    return { myDelta: deltaWinner, newRating: myR + deltaWinner }
+  }
+  if (b > a) {
+    const { deltaWinner, deltaLoser } = calculateMatchRating(oppR, myR, b, a, Number(kd) || 0.25)
+    return { myDelta: deltaLoser, newRating: myR + deltaLoser }
+  }
+  return null
+}

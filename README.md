@@ -35,17 +35,6 @@ tg_tennis_league_bot/
    - **Project URL** → для `SUPABASE_URL`
    - **anon public** → для фронта и бота (или **service_role** только для бота, если нужны права на запись без RLS)
 
-### Передача кредов БД и подключение
-
-| Куда | Что передать | Откуда взять |
-|------|--------------|--------------|
-| **bot/.env** | `SUPABASE_URL`, `SUPABASE_KEY` | Supabase → Settings → API (URL, anon или service_role) |
-| **frontend/.env** | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | Только **anon** ключ (не service_role) |
-| **GitHub Actions** | Секреты `VITE_SUPABASE_URL`, `VITE_SUPABASE_KEY` | Тот же URL и anon ключ (для сборки фронта) |
-| **Railway / Docker** | Переменные `SUPABASE_URL`, `SUPABASE_KEY` | Те же значения, что в bot/.env |
-
-Файлы `.env` не коммитить (они в `.gitignore`). Скрипт `scripts/import_from_sheets.py` читает креды из `bot/.env`; для записи в БД при включённом RLS может понадобиться `SUPABASE_SERVICE_KEY` (service_role) в `bot/.env`.
-
 ---
 
 ## 3. Настроить .env файлы
@@ -173,3 +162,59 @@ docker run --env-file .env tennis-league-bot
 - Рейтинг по формулам ФНТР (КД по дивизиону, КС по счёту). Новый игрок: рейтинг 100, последний дивизион.
 
 Подробнее — в разделе «Правила» в Mini App и в **context_project.md**.
+
+---
+
+## Структура БД
+
+```
+                    ┌─────────────────┐
+                    │     players     │
+                    ├─────────────────┤
+                    │ id (PK)         │
+                    │ telegram_id UK  │
+                    │ name, rating    │
+                    │ is_admin        │
+                    └────────┬────────┘
+                             │
+         ┌───────────────────┼───────────────────┐
+         │                   │                   │
+         ▼                   ▼                   ▼
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│    seasons      │  │ division_players│  │ rating_history  │
+├─────────────────┤  ├─────────────────┤  ├─────────────────┤
+│ id (PK)         │  │ id (PK)         │  │ id (PK)         │
+│ year, month UK  │  │ division_id FK  │  │ player_id FK    │
+│ name, status    │  │ player_id FK    │  │ match_id FK     │
+└────────┬────────┘  │ position        │  │ season_id FK    │
+         │            │ total_points    │  │ rating_before   │
+         │            │ total_sets_*   │  │ rating_delta    │
+         ▼            │ rating_delta   │  │ rating_after    │
+┌─────────────────┐  └────────┬────────┘  └─────────────────┘
+│   divisions     │           │
+├─────────────────┤           │
+│ id (PK)         │           │
+│ season_id FK     │◄──────────┘
+│ number, coef    │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│     matches     │
+├─────────────────┤
+│ id (PK)         │
+│ division_id FK  │
+│ player1_id FK   │
+│ player2_id FK   │
+│ sets_player1/2  │
+│ status          │
+│ submitted_by FK │
+└─────────────────┘
+```
+
+- **players** — игроки (telegram_id, рейтинг, имя).
+- **seasons** — туры по месяцам (year, month, status: active/closed).
+- **divisions** — дивизионы сезона (number, coef КД).
+- **division_players** — участники дивизиона (position, очки, сеты, rating_delta).
+- **matches** — матчи (player1/2, счёт, status: pending/played/not_played).
+- **rating_history** — история изменения рейтинга за матч.

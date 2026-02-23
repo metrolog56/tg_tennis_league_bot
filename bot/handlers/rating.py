@@ -22,6 +22,11 @@ async def _send_rating(message_or_chat, telegram_id: int):
         return
     current = get_player_by_telegram_id(telegram_id)
     current_id = current["id"] if current else None
+    if not current:
+        await message_or_chat.answer(
+            "Вас нет в рейтинге. Зарегистрируйтесь через /start, затем обратитесь к администратору для добавления в дивизион."
+        )
+        return
     lines = ["🏆 <b>Рейтинг (топ-20)</b>\n"]
     for i, row in enumerate(top, 1):
         name = row.get("name", "—")

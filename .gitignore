@@ -1,26 +1,16 @@
-# Environment and credentials — do not commit
 .env
 .env.local
 .env.*.local
-bot/.env
-frontend/.env
-
-# Python
+node_modules/
 __pycache__/
 *.py[cod]
 *$py.class
-.pytest_cache/
 .venv/
 venv/
-env/
-
-# Node / frontend
-frontend/node_modules/
-frontend/dist/
-npm-debug.log*
-
-# IDE and OS
-.idea/
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
 .DS_Store
-*.swp
-*.swo

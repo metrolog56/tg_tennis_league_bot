@@ -106,6 +106,21 @@ export default function Home({ telegramId }) {
   const divisionPlayers = divisionData.divisionPlayers || []
   const myId = player.id
 
+  const existingMatchesByOpponentId = {}
+  if (matchesMatrix?.matches) {
+    for (const m of matchesMatrix.matches) {
+      if (m.status !== 'played') continue
+      const p1 = m.player1_id
+      const p2 = m.player2_id
+      if (p1 === myId) existingMatchesByOpponentId[p2] = 'played'
+      else if (p2 === myId) existingMatchesByOpponentId[p1] = 'played'
+    }
+  }
+  const opponents = divisionPlayers
+    .filter(d => (d.player?.id || d.player_id) !== myId)
+    .map(d => d.player || { id: d.player_id })
+    .filter(Boolean)
+
   const getCell = (p1Id, p2Id) => {
     if (!matchesMatrix?.matrix || p1Id === p2Id) return null
     const key = `${p1Id}-${p2Id}`
@@ -171,7 +186,8 @@ export default function Home({ telegramId }) {
           divisionCoef={Number(division.coef) || 0.25}
           currentPlayerId={myId}
           currentPlayerRating={Number(player.rating) || 100}
-          opponents={divisionPlayers.filter(d => (d.player?.id || d.player_id) !== myId).map(d => d.player || { id: d.player_id })}
+          opponents={opponents}
+          existingMatchesByOpponentId={existingMatchesByOpponentId}
           onClose={() => setShowMatchInput(false)}
           onSaved={async () => {
             setShowMatchInput(false)

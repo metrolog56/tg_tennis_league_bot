@@ -115,7 +115,7 @@ export default function Division({ telegramId }) {
     const key = `${p1Id}-${p2Id}`
     const rev = `${p2Id}-${p1Id}`
     const cell = matrix[key] || matrix[rev]
-    if (!cell?.score) return '—'
+    if (cell == null || !cell.score) return '—'
     return cell.score
   }
 

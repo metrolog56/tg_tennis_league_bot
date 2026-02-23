@@ -72,7 +72,7 @@ async def close_tour(bot: Optional["Bot"] = None) -> str:
             "sets_player2": 0,
         }).eq("division_id", d["id"]).eq("status", "pending").execute()
 
-    # 3–4. Позиции в каждом дивизионе (по очкам, затем по разнице сетов)
+    # 3–4. Позиции в каждом дивизионе: очки → личная встреча → разница сетов
     lines = [f"📋 <b>Тур закрыт: {season_name}</b>\n"]
     for d in divs_r.data or []:
         div_id = d["id"]
@@ -85,12 +85,45 @@ async def close_tour(bot: Optional["Bot"] = None) -> str:
         rows = dps_r.data or []
         if not rows:
             continue
-        def key(r):
+        matches_r = (
+            client.table("matches")
+            .select("player1_id, player2_id, sets_player1, sets_player2")
+            .eq("division_id", div_id)
+            .eq("status", "played")
+            .execute()
+        )
+        matches = matches_r.data or []
+
+        def sort_key(r):
             pts = r.get("total_points") or 0
             sw = r.get("total_sets_won") or 0
             sl = r.get("total_sets_lost") or 0
-            return (pts, sw - sl)
-        rows.sort(key=key, reverse=True)
+            return (-pts, -(sw - sl))
+
+        rows.sort(key=sort_key)
+
+        i = 0
+        while i < len(rows):
+            j = i
+            while j < len(rows) and sort_key(rows[j]) == sort_key(rows[i]):
+                j += 1
+            if j - i > 1:
+                group = rows[i:j]
+                group_ids = {r["player_id"] for r in group}
+                wins = {r["player_id"]: 0 for r in group}
+                for m in matches:
+                    p1, p2 = m["player1_id"], m["player2_id"]
+                    if p1 not in group_ids or p2 not in group_ids:
+                        continue
+                    s1, s2 = m.get("sets_player1") or 0, m.get("sets_player2") or 0
+                    if s1 > s2:
+                        wins[p1] = wins.get(p1, 0) + 1
+                    elif s2 > s1:
+                        wins[p2] = wins.get(p2, 0) + 1
+                group.sort(key=lambda r: wins.get(r["player_id"], 0), reverse=True)
+                rows[i:j] = group
+            i = j
+
         for pos, row in enumerate(rows, 1):
             client.table("division_players").update({"position": pos}).eq("id", row["id"]).execute()
         div_num_r = client.table("divisions").select("number").eq("id", div_id).execute()

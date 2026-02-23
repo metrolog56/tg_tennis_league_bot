@@ -39,7 +39,10 @@ def calculate_match_rating(
     winner_sets, loser_sets — сеты победителя и проигравшего;
     kd — коэффициент дивизиона (КД).
     Возвращает (delta_winner, delta_loser).
+    Несыгранный матч (0, 0) → (0, 0).
     """
+    if winner_sets == 0 and loser_sets == 0:
+        return (0.0, 0.0)
     rw = Decimal(str(winner_rating))
     rl = Decimal(str(loser_rating))
     kd_dec = Decimal(str(kd))
