@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { calculateMatchRating } from '../utils/ratingCalc'
 
 const url = import.meta.env.VITE_SUPABASE_URL
 const key = import.meta.env.VITE_SUPABASE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -123,7 +124,7 @@ export async function getTopRating(limit = 50) {
   return data || []
 }
 
-export async function submitMatchResult(divisionId, player1Id, player2Id, sets1, sets2) {
+export async function submitMatchResult(divisionId, player1Id, player2Id, sets1, sets2, submittedBy = null) {
   let existing = null
   const { data: r1 } = await supabase
     .from('matches')
@@ -146,6 +147,42 @@ export async function submitMatchResult(divisionId, player1Id, player2Id, sets1,
   if (existing?.status === 'played') {
     throw new Error('Этот матч уже внесён.')
   }
+
+  const division = await getDivisionById(divisionId)
+  if (!division) throw new Error('Дивизион не найден.')
+  const divisionCoef = Number(division.coef) || 0.25
+  const seasonId = division.season?.id || division.season_id
+  if (!seasonId) throw new Error('Сезон дивизиона не найден.')
+
+  const [{ data: p1 }, { data: p2 }] = await Promise.all([
+    supabase.from('players').select('id, rating').eq('id', player1Id).single(),
+    supabase.from('players').select('id, rating').eq('id', player2Id).single(),
+  ])
+  const r1Val = Number(p1?.rating) ?? 100
+  const r2Val = Number(p2?.rating) ?? 100
+
+  const s1 = Number(sets1) || 0
+  const s2 = Number(sets2) || 0
+  const winnerId = s1 > s2 ? player1Id : player2Id
+  const loserId = s1 > s2 ? player2Id : player1Id
+  const winnerSets = s1 > s2 ? s1 : s2
+  const loserSets = s1 > s2 ? s2 : s1
+  const winnerRatingBefore = s1 > s2 ? r1Val : r2Val
+  const loserRatingBefore = s1 > s2 ? r2Val : r1Val
+
+  const { deltaWinner, deltaLoser } = calculateMatchRating(
+    winnerRatingBefore,
+    loserRatingBefore,
+    winnerSets,
+    loserSets,
+    divisionCoef
+  )
+  const winnerRatingAfter = Math.round((winnerRatingBefore + deltaWinner) * 100) / 100
+  const loserRatingAfter = Math.round((loserRatingBefore + deltaLoser) * 100) / 100
+
+  const pointsWinner = 2
+  const pointsLoser = 1
+
   const payload = {
     division_id: divisionId,
     player1_id: player1Id,
@@ -155,6 +192,9 @@ export async function submitMatchResult(divisionId, player1Id, player2Id, sets1,
     status: 'played',
     played_at: new Date().toISOString(),
   }
+  if (submittedBy) payload.submitted_by = submittedBy
+
+  let matchRow
   if (existing?.id) {
     const { data, error } = await supabase
       .from('matches')
@@ -163,13 +203,78 @@ export async function submitMatchResult(divisionId, player1Id, player2Id, sets1,
       .select()
       .single()
     if (error) throw error
-    return data
+    matchRow = data
+  } else {
+    const { data, error } = await supabase
+      .from('matches')
+      .insert(payload)
+      .select()
+      .single()
+    if (error) throw error
+    matchRow = data
   }
-  const { data, error } = await supabase
-    .from('matches')
-    .insert(payload)
-    .select()
+
+  const matchId = matchRow.id
+
+  await Promise.all([
+    supabase.from('players').update({ rating: winnerRatingAfter }).eq('id', winnerId),
+    supabase.from('players').update({ rating: loserRatingAfter }).eq('id', loserId),
+  ])
+
+  const { data: dpWinner } = await supabase
+    .from('division_players')
+    .select('id, total_points, total_sets_won, total_sets_lost, rating_delta')
+    .eq('division_id', divisionId)
+    .eq('player_id', winnerId)
     .single()
-  if (error) throw error
-  return data
+  const { data: dpLoser } = await supabase
+    .from('division_players')
+    .select('id, total_points, total_sets_won, total_sets_lost, rating_delta')
+    .eq('division_id', divisionId)
+    .eq('player_id', loserId)
+    .single()
+
+  if (dpWinner) {
+    await supabase
+      .from('division_players')
+      .update({
+        total_points: (dpWinner.total_points || 0) + pointsWinner,
+        total_sets_won: (dpWinner.total_sets_won || 0) + winnerSets,
+        total_sets_lost: (dpWinner.total_sets_lost || 0) + loserSets,
+        rating_delta: Math.round(((dpWinner.rating_delta || 0) + deltaWinner) * 100) / 100,
+      })
+      .eq('id', dpWinner.id)
+  }
+  if (dpLoser) {
+    await supabase
+      .from('division_players')
+      .update({
+        total_points: (dpLoser.total_points || 0) + pointsLoser,
+        total_sets_won: (dpLoser.total_sets_won || 0) + loserSets,
+        total_sets_lost: (dpLoser.total_sets_lost || 0) + winnerSets,
+        rating_delta: Math.round(((dpLoser.rating_delta || 0) + deltaLoser) * 100) / 100,
+      })
+      .eq('id', dpLoser.id)
+  }
+
+  await supabase.from('rating_history').insert([
+    {
+      player_id: winnerId,
+      match_id: matchId,
+      season_id: seasonId,
+      rating_before: winnerRatingBefore,
+      rating_delta: deltaWinner,
+      rating_after: winnerRatingAfter,
+    },
+    {
+      player_id: loserId,
+      match_id: matchId,
+      season_id: seasonId,
+      rating_before: loserRatingBefore,
+      rating_delta: deltaLoser,
+      rating_after: loserRatingAfter,
+    },
+  ])
+
+  return matchRow
 }

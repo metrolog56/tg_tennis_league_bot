@@ -100,8 +100,13 @@ ALTER TABLE rating_history ENABLE ROW LEVEL SECURITY;
 -- Читать могут все аутентифицированные
 CREATE POLICY "Anyone can view players" ON players FOR SELECT USING (true);
 CREATE POLICY "Allow insert players" ON players FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow update players" ON players FOR UPDATE USING (true);
 CREATE POLICY "Anyone can view seasons" ON seasons FOR SELECT USING (true);
 CREATE POLICY "Anyone can view divisions" ON divisions FOR SELECT USING (true);
 CREATE POLICY "Anyone can view division_players" ON division_players FOR SELECT USING (true);
+CREATE POLICY "Allow update division_players" ON division_players FOR UPDATE USING (true);
 CREATE POLICY "Anyone can view matches" ON matches FOR SELECT USING (true);
+CREATE POLICY "Allow insert matches" ON matches FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow update matches" ON matches FOR UPDATE USING (true);
 CREATE POLICY "Anyone can view rating_history" ON rating_history FOR SELECT USING (true);
+CREATE POLICY "Allow insert rating_history" ON rating_history FOR INSERT WITH CHECK (true);

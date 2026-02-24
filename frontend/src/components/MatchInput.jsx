@@ -58,7 +58,8 @@ export default function MatchInput({
         currentPlayerId,
         selectedOpponent.id,
         sets1,
-        sets2
+        sets2,
+        currentPlayerId
       )
       onSaved?.()
     } catch (e) {
