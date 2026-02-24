@@ -216,26 +216,30 @@ export async function submitMatchResult(divisionId, player1Id, player2Id, sets1,
 
   const matchId = matchRow.id
 
-  await Promise.all([
+  const [winnerUpdate, loserUpdate] = await Promise.all([
     supabase.from('players').update({ rating: winnerRatingAfter }).eq('id', winnerId),
     supabase.from('players').update({ rating: loserRatingAfter }).eq('id', loserId),
   ])
+  if (winnerUpdate.error) throw winnerUpdate.error
+  if (loserUpdate.error) throw loserUpdate.error
 
-  const { data: dpWinner } = await supabase
+  const { data: dpWinner, error: errDpWinner } = await supabase
     .from('division_players')
     .select('id, total_points, total_sets_won, total_sets_lost, rating_delta')
     .eq('division_id', divisionId)
     .eq('player_id', winnerId)
     .single()
-  const { data: dpLoser } = await supabase
+  if (errDpWinner) throw errDpWinner
+  const { data: dpLoser, error: errDpLoser } = await supabase
     .from('division_players')
     .select('id, total_points, total_sets_won, total_sets_lost, rating_delta')
     .eq('division_id', divisionId)
     .eq('player_id', loserId)
     .single()
+  if (errDpLoser) throw errDpLoser
 
   if (dpWinner) {
-    await supabase
+    const { error: errUpWinner } = await supabase
       .from('division_players')
       .update({
         total_points: (dpWinner.total_points || 0) + pointsWinner,
@@ -244,9 +248,10 @@ export async function submitMatchResult(divisionId, player1Id, player2Id, sets1,
         rating_delta: Math.round(((dpWinner.rating_delta || 0) + deltaWinner) * 100) / 100,
       })
       .eq('id', dpWinner.id)
+    if (errUpWinner) throw errUpWinner
   }
   if (dpLoser) {
-    await supabase
+    const { error: errUpLoser } = await supabase
       .from('division_players')
       .update({
         total_points: (dpLoser.total_points || 0) + pointsLoser,
@@ -255,9 +260,10 @@ export async function submitMatchResult(divisionId, player1Id, player2Id, sets1,
         rating_delta: Math.round(((dpLoser.rating_delta || 0) + deltaLoser) * 100) / 100,
       })
       .eq('id', dpLoser.id)
+    if (errUpLoser) throw errUpLoser
   }
 
-  await supabase.from('rating_history').insert([
+  const { error: errHistory } = await supabase.from('rating_history').insert([
     {
       player_id: winnerId,
       match_id: matchId,
@@ -275,6 +281,7 @@ export async function submitMatchResult(divisionId, player1Id, player2Id, sets1,
       rating_after: loserRatingAfter,
     },
   ])
+  if (errHistory) throw errHistory
 
   return matchRow
 }
