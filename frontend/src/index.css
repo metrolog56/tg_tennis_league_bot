@@ -35,6 +35,10 @@ body {
   padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0);
+}
+
 /* Горизонтальный скролл для таблиц */
 .table-scroll {
   overflow-x: auto;

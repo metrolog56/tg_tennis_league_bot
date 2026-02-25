@@ -144,6 +144,7 @@ export default function Home({ telegramId }) {
               <th className="text-left p-2">Игрок</th>
               <th className="text-right p-2">Очки</th>
               <th className="text-right p-2">Сеты</th>
+              <th className="text-right p-2">Дельта рейтинга</th>
             </tr>
           </thead>
           <tbody>
@@ -152,6 +153,7 @@ export default function Home({ telegramId }) {
               const name = p.name || '—'
               const pts = row.total_points ?? 0
               const sets = `${row.total_sets_won ?? 0}-${row.total_sets_lost ?? 0}`
+              const delta = row.rating_delta != null ? Number(row.rating_delta) : null
               const isMe = p.id === myId
               return (
                 <tr
@@ -162,6 +164,9 @@ export default function Home({ telegramId }) {
                   <td className="p-2 font-medium">{name}{isMe ? ' (вы)' : ''}</td>
                   <td className="p-2 text-right">{pts}</td>
                   <td className="p-2 text-right">{sets}</td>
+                  <td className="p-2 text-right">
+                    {delta != null ? (delta >= 0 ? `+${delta.toFixed(2)}` : delta.toFixed(2)) : '—'}
+                  </td>
                 </tr>
               )
             })}

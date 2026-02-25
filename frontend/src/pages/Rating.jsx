@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getTopRating, getPlayerByTelegramId } from '../api/supabase'
+import { getTopRatingWithStats, getPlayerByTelegramId } from '../api/supabase'
 
 export default function Rating({ telegramId }) {
   const [list, setList] = useState([])
@@ -12,7 +12,7 @@ export default function Rating({ telegramId }) {
     async function load() {
       try {
         const [top, player] = await Promise.all([
-          getTopRating(50),
+          getTopRatingWithStats(50),
           telegramId ? getPlayerByTelegramId(telegramId) : null,
         ])
         if (!cancelled) {
@@ -57,13 +57,20 @@ export default function Rating({ telegramId }) {
               <th className="text-left p-2 w-12">#</th>
               <th className="text-left p-2">Игрок</th>
               <th className="text-right p-2">Рейтинг</th>
-              <th className="text-right p-2">Δ тур</th>
+              <th className="text-right p-2">Игры</th>
+              <th className="text-right p-2">В</th>
+              <th className="text-right p-2">П</th>
+              <th className="text-right p-2">%</th>
             </tr>
           </thead>
           <tbody>
             {list.map((row, i) => {
               const isCurrent = row.id === currentPlayerId
               const m = medal(i)
+              const games = row.games != null ? Number(row.games) : null
+              const wins = row.wins != null ? Number(row.wins) : null
+              const losses = games != null && wins != null ? games - wins : null
+              const pct = games != null && games > 0 && wins != null ? (wins / games * 100).toFixed(1) : null
               return (
                 <tr
                   key={row.id}
@@ -78,10 +85,10 @@ export default function Rating({ telegramId }) {
                   <td className="p-2 text-right font-mono">
                     {Number(row.rating ?? 0).toFixed(2)}
                   </td>
-                  <td className="p-2 text-right">
-                    {/* Δ за последний тур — в БД можно добавить поле или брать из rating_history */}
-                    —
-                  </td>
+                  <td className="p-2 text-right">{games != null ? games : '—'}</td>
+                  <td className="p-2 text-right">{wins != null ? wins : '—'}</td>
+                  <td className="p-2 text-right">{losses != null ? losses : '—'}</td>
+                  <td className="p-2 text-right">{pct != null ? `${pct}%` : '—'}</td>
                 </tr>
               )
             })}

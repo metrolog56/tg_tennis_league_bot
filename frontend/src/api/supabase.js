@@ -109,7 +109,16 @@ export async function getDivisionMatches(divisionId) {
     const key1 = `${m.player1_id}-${m.player2_id}`
     const key2 = `${m.player2_id}-${m.player1_id}`
     const score = m.status === 'played' ? `${m.sets_player1}-${m.sets_player2}` : null
-    matrix[key1] = matrix[key2] = { score, status: m.status, matchId: m.id, sets1: m.sets_player1, sets2: m.sets_player2 }
+    const cell = {
+      score,
+      status: m.status,
+      matchId: m.id,
+      player1_id: m.player1_id,
+      player2_id: m.player2_id,
+      sets1: m.sets_player1,
+      sets2: m.sets_player2,
+    }
+    matrix[key1] = matrix[key2] = cell
   }
   return { players, matches: matches || [], matrix }
 }
@@ -121,6 +130,20 @@ export async function getTopRating(limit = 50) {
     .order('rating', { ascending: false })
     .limit(limit)
   if (error) throw error
+  return data || []
+}
+
+/** Rating list with games/wins for stats columns. Uses player_stats view if available. */
+export async function getTopRatingWithStats(limit = 50) {
+  const { data, error } = await supabase
+    .from('player_stats')
+    .select('id, name, rating, telegram_id, games, wins')
+    .order('rating', { ascending: false })
+    .limit(limit)
+  if (error) {
+    const fallback = await getTopRating(limit)
+    return (fallback || []).map((p) => ({ ...p, games: null, wins: null }))
+  }
   return data || []
 }
 

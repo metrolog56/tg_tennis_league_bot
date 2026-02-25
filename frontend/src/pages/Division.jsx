@@ -115,8 +115,13 @@ export default function Division({ telegramId }) {
     const key = `${p1Id}-${p2Id}`
     const rev = `${p2Id}-${p1Id}`
     const cell = matrix[key] || matrix[rev]
-    if (cell == null || !cell.score) return '—'
-    return cell.score
+    if (cell == null || cell.status !== 'played') return '—'
+    const s1 = cell.sets1
+    const s2 = cell.sets2
+    if (s1 == null || s2 == null) return '—'
+    const p1Sets = cell.player1_id === p1Id ? s1 : s2
+    const p2Sets = cell.player1_id === p1Id ? s2 : s1
+    return `${p1Sets}-${p2Sets}`
   }
 
   const shortName = (name) => (name || '').split(' ')[0] || '—'
@@ -160,7 +165,6 @@ export default function Division({ telegramId }) {
         </table>
       </div>
 
-      <h2 className="text-lg font-semibold mb-2">Турнирная таблица</h2>
       <div className="rounded-lg border border-[var(--tg-theme-hint-color)]/30 overflow-hidden">
         <table className="w-full text-sm">
           <thead style={{ background: 'var(--tg-theme-secondary-bg-color)' }}>
