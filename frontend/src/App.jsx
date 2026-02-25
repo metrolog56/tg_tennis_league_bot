@@ -69,7 +69,7 @@ function App() {
     <HashRouter>
       <Layout>
         <Routes>
-          <Route path="/" element={<Home telegramId={telegramId} />} />
+          <Route index element={<Home telegramId={telegramId} />} />
           <Route path="/rating" element={<Rating telegramId={telegramId} />} />
           <Route path="/division" element={<Division telegramId={telegramId} />} />
           <Route path="/division/:id" element={<Division telegramId={telegramId} />} />

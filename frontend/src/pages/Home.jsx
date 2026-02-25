@@ -25,15 +25,13 @@ export default function Home({ telegramId }) {
     let cancelled = false
     async function load() {
       try {
-        const p = await getPlayerByTelegramId(telegramId)
+        const [p, season] = await Promise.all([
+          getPlayerByTelegramId(telegramId),
+          getCurrentSeason(),
+        ])
         if (cancelled) return
         setPlayer(p)
-        if (!p) {
-          setLoading(false)
-          return
-        }
-        const season = await getCurrentSeason()
-        if (!season) {
+        if (!p || !season) {
           setLoading(false)
           return
         }
@@ -41,19 +39,23 @@ export default function Home({ telegramId }) {
         if (cancelled) return
         setDivisionData(divData)
         if (divData?.division?.id) {
-          const [st, mat] = await Promise.all([
-            getDivisionStandings(divData.division.id),
-            getDivisionMatches(divData.division.id),
-          ])
+          const divisionId = divData.division.id
+          const st = await getDivisionStandings(divisionId)
           if (!cancelled) {
             setStandings(st)
-            setMatchesMatrix(mat)
+            setLoading(false)
           }
+          getDivisionMatches(divisionId)
+            .then((mat) => { if (!cancelled) setMatchesMatrix(mat) })
+            .catch(() => {})
+        } else {
+          setLoading(false)
         }
       } catch (e) {
-        if (!cancelled) setError(e?.message || 'Ошибка загрузки')
-      } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) {
+          setError(e?.message || 'Ошибка загрузки')
+          setLoading(false)
+        }
       }
     }
     load()
