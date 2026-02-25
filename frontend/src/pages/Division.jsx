@@ -1,114 +1,13 @@
 import { useState, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
 import {
-  getPlayerByTelegramId,
-  getPlayerDivision,
-  getDivisionById,
-  getDivisionStandings,
-  getDivisionMatches,
   getCurrentSeason,
+  getDivisionsBySeasonId,
+  getDivisionMatches,
 } from '../api/supabase'
 
-export default function Division({ telegramId }) {
-  const { id: paramId } = useParams()
-  const [divisionId, setDivisionId] = useState(paramId || null)
-  const [division, setDivision] = useState(null)
-  const [season, setSeason] = useState(null)
-  const [standings, setStandings] = useState([])
-  const [matrixData, setMatrixData] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-
-  useEffect(() => {
-    let cancelled = false
-    async function load() {
-      try {
-        if (paramId) {
-          setDivisionId(paramId)
-          const [divRes, st, mat] = await Promise.all([
-            getDivisionById(paramId),
-            getDivisionStandings(paramId),
-            getDivisionMatches(paramId),
-          ])
-          if (cancelled) return
-          if (divRes) {
-            setDivision(divRes)
-            setSeason(divRes.season || null)
-          }
-          setStandings(st)
-          setMatrixData(mat)
-          setLoading(false)
-          return
-        }
-        if (!telegramId) {
-          setLoading(false)
-          return
-        }
-        const player = await getPlayerByTelegramId(telegramId)
-        if (!player) {
-          setLoading(false)
-          return
-        }
-        const seasonRes = await getCurrentSeason()
-        if (!seasonRes) {
-          setLoading(false)
-          return
-        }
-        setSeason(seasonRes)
-        const divData = await getPlayerDivision(player.id, seasonRes.id)
-        if (cancelled) return
-        if (!divData?.division) {
-          setLoading(false)
-          return
-        }
-        setDivision(divData.division)
-        setSeason(divData.season || seasonRes)
-        setDivisionId(divData.division.id)
-        const [st, mat] = await Promise.all([
-          getDivisionStandings(divData.division.id),
-          getDivisionMatches(divData.division.id),
-        ])
-        if (!cancelled) {
-          setStandings(st)
-          setMatrixData(mat)
-        }
-      } catch (e) {
-        if (!cancelled) setError(e?.message || 'Ошибка загрузки')
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-    load()
-    return () => { cancelled = true }
-  }, [telegramId, paramId])
-
-  if (loading) {
-    return (
-      <div className="p-4 min-w-[320px]">
-        <p className="text-[var(--tg-theme-hint-color)]">Загрузка...</p>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="p-4 min-w-[320px]">
-        <p className="text-red-500">{error}</p>
-      </div>
-    )
-  }
-
-  if (!matrixData?.players?.length) {
-    return (
-      <div className="p-4 min-w-[320px]">
-        <h1 className="text-xl font-bold mb-4">🏓 Дивизион</h1>
-        <p className="text-[var(--tg-theme-hint-color)]">Нет данных дивизиона.</p>
-      </div>
-    )
-  }
-
-  const players = matrixData.players
-  const matrix = matrixData.matrix || {}
+function DivisionMatrix({ divisionNumber, matrixData }) {
+  const players = matrixData?.players || []
+  const matrix = matrixData?.matrix || {}
 
   const getScore = (p1Id, p2Id) => {
     if (p1Id === p2Id) return '—'
@@ -126,14 +25,12 @@ export default function Division({ telegramId }) {
 
   const shortName = (name) => (name || '').split(' ')[0] || '—'
 
-  return (
-    <div className="p-4 min-w-[320px] max-w-4xl mx-auto">
-      <h1 className="text-xl font-bold mb-2">🏓 Дивизион</h1>
-      {season?.name && (
-        <p className="text-sm text-[var(--tg-theme-hint-color)] mb-4">{season.name}</p>
-      )}
+  if (!players.length) return null
 
-      <div className="table-scroll mb-6">
+  return (
+    <div className="mb-8">
+      <h2 className="text-lg font-semibold mb-2">Дивизион {divisionNumber}</h2>
+      <div className="table-scroll">
         <table className="w-full text-sm border-collapse">
           <thead style={{ background: 'var(--tg-theme-secondary-bg-color)' }}>
             <tr>
@@ -164,40 +61,97 @@ export default function Division({ telegramId }) {
           </tbody>
         </table>
       </div>
+    </div>
+  )
+}
 
-      <div className="rounded-lg border border-[var(--tg-theme-hint-color)]/30 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead style={{ background: 'var(--tg-theme-secondary-bg-color)' }}>
-            <tr>
-              <th className="text-left p-2">Место</th>
-              <th className="text-left p-2">Игрок</th>
-              <th className="text-right p-2">Очки</th>
-              <th className="text-right p-2">Сеты</th>
-              <th className="text-right p-2">Δ рейтинга</th>
-            </tr>
-          </thead>
-          <tbody>
-            {standings.map((row, i) => {
-              const p = row.player || {}
-              const pts = row.total_points ?? 0
-              const sw = row.total_sets_won ?? 0
-              const sl = row.total_sets_lost ?? 0
-              const delta = row.rating_delta != null ? Number(row.rating_delta) : null
-              return (
-                <tr key={row.id}>
-                  <td className="p-2">{row.position ?? i + 1}</td>
-                  <td className="p-2 font-medium">{p.name || '—'}</td>
-                  <td className="p-2 text-right">{pts}</td>
-                  <td className="p-2 text-right">{sw}-{sl}</td>
-                  <td className="p-2 text-right">
-                    {delta != null ? (delta >= 0 ? `+${delta.toFixed(2)}` : delta.toFixed(2)) : '—'}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+export default function Division() {
+  const [season, setSeason] = useState(null)
+  const [divisions, setDivisions] = useState([])
+  const [divisionMatrixMap, setDivisionMatrixMap] = useState({})
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      try {
+        const seasonRes = await getCurrentSeason()
+        if (cancelled) return
+        if (!seasonRes) {
+          setLoading(false)
+          return
+        }
+        setSeason(seasonRes)
+        const divs = await getDivisionsBySeasonId(seasonRes.id)
+        if (cancelled) return
+        setDivisions(divs || [])
+        const map = {}
+        await Promise.all(
+          (divs || []).map(async (d) => {
+            const mat = await getDivisionMatches(d.id)
+            if (!cancelled) map[d.id] = mat
+          })
+        )
+        if (!cancelled) setDivisionMatrixMap(map)
+      } catch (e) {
+        if (!cancelled) setError(e?.message || 'Ошибка загрузки')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="p-4 min-w-[320px]">
+        <p className="text-[var(--tg-theme-hint-color)]">Загрузка...</p>
       </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 min-w-[320px]">
+        <p className="text-red-500">{error}</p>
+      </div>
+    )
+  }
+
+  if (!season) {
+    return (
+      <div className="p-4 min-w-[320px]">
+        <h1 className="text-xl font-bold mb-4">🏓 Дивизионы</h1>
+        <p className="text-[var(--tg-theme-hint-color)]">Нет активного сезона.</p>
+      </div>
+    )
+  }
+
+  if (!divisions.length) {
+    return (
+      <div className="p-4 min-w-[320px]">
+        <h1 className="text-xl font-bold mb-4">🏓 Дивизионы</h1>
+        <p className="text-[var(--tg-theme-hint-color)]">Нет дивизионов в текущем сезоне.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-4 min-w-[320px] max-w-4xl mx-auto">
+      <h1 className="text-xl font-bold mb-2">🏓 Дивизионы</h1>
+      {season?.name && (
+        <p className="text-sm text-[var(--tg-theme-hint-color)] mb-6">{season.name}</p>
+      )}
+
+      {divisions.map((d) => (
+        <DivisionMatrix
+          key={d.id}
+          divisionNumber={d.number}
+          matrixData={divisionMatrixMap[d.id]}
+        />
+      ))}
     </div>
   )
 }

@@ -76,6 +76,17 @@ export async function getDivisionById(divisionId) {
   return div
 }
 
+/** All divisions of a season (for Дивизионы page). */
+export async function getDivisionsBySeasonId(seasonId) {
+  const { data, error } = await supabase
+    .from('divisions')
+    .select('id, number, season_id')
+    .eq('season_id', seasonId)
+    .order('number', { ascending: true })
+  if (error) throw error
+  return data || []
+}
+
 export async function getDivisionStandings(divisionId) {
   const { data, error } = await supabase
     .from('division_players')

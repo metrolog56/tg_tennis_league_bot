@@ -140,7 +140,7 @@ export default function Home({ telegramId }) {
         <table className="w-full text-sm">
           <thead style={{ background: 'var(--tg-theme-secondary-bg-color)' }}>
             <tr>
-              <th className="text-left p-2">#</th>
+              <th className="text-left p-2">Место</th>
               <th className="text-left p-2">Игрок</th>
               <th className="text-right p-2">Очки</th>
               <th className="text-right p-2">Сеты</th>
@@ -148,7 +148,9 @@ export default function Home({ telegramId }) {
             </tr>
           </thead>
           <tbody>
-            {standings.map((row, i) => {
+            {[...standings]
+              .sort((a, b) => (b.total_points ?? 0) - (a.total_points ?? 0) || ((b.total_sets_won ?? 0) - (b.total_sets_lost ?? 0)) - ((a.total_sets_won ?? 0) - (a.total_sets_lost ?? 0)))
+              .map((row, i) => {
               const p = row.player || {}
               const name = p.name || '—'
               const pts = row.total_points ?? 0
@@ -160,7 +162,7 @@ export default function Home({ telegramId }) {
                   key={row.id}
                   className={isMe ? 'bg-[var(--tg-theme-button-color)]/10' : ''}
                 >
-                  <td className="p-2">{row.position ?? i + 1}</td>
+                  <td className="p-2">{i + 1}</td>
                   <td className="p-2 font-medium">{name}{isMe ? ' (вы)' : ''}</td>
                   <td className="p-2 text-right">{pts}</td>
                   <td className="p-2 text-right">{sets}</td>
