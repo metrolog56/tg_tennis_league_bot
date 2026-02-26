@@ -1,16 +1,7 @@
 import { useState } from 'react'
-import { Listbox, Transition, Dialog } from '@headlessui/react'
-import { Fragment } from 'react'
+import { Dialog } from '@headlessui/react'
 import { submitMatchForConfirmation } from '../api/supabase'
 import { previewRatingChange } from '../utils/ratingCalc'
-
-function ChevronIcon() {
-  return (
-    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-      <path fillRule="evenodd" d="M10 3a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L10 5.414 7.707 7.707a1 1 0 01-1.414-1.414l3-3A1 1 0 0110 3z" clipRule="evenodd" />
-    </svg>
-  )
-}
 
 export default function MatchInput({
   divisionId,
@@ -78,15 +69,15 @@ export default function MatchInput({
   return (
     <Dialog open onClose={onClose} className="relative z-50">
       <div className="fixed inset-0 bg-black/50" aria-hidden="true" />
-      <div className="fixed inset-0 flex items-end sm:items-center justify-center p-0 sm:p-4 min-w-[320px]">
+      <div className="fixed inset-0 flex items-center justify-center p-3 min-w-[320px]">
         <Dialog.Panel
-          className="w-full max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl p-4 shadow-xl"
+          className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl p-4 shadow-xl"
           style={{
             background: 'var(--tg-theme-bg-color)',
             color: 'var(--tg-theme-text-color)',
           }}
         >
-          <Dialog.Title className="text-lg font-bold mb-4">
+          <Dialog.Title className="text-lg font-bold mb-3">
             Внести результат матча
           </Dialog.Title>
 
@@ -94,57 +85,33 @@ export default function MatchInput({
             <p className="text-[var(--tg-theme-hint-color)] mb-4">Все матчи с соперниками уже внесены.</p>
           ) : (
           <>
+          <p className="text-sm font-medium mb-2 text-[var(--tg-theme-hint-color)]">
+            Выберите соперника
+          </p>
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            {opponentList.map((p) => {
+              const isSelected = selectedOpponent?.id === p.id
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setSelectedOpponent(p)}
+                  className="py-2.5 px-3 rounded-lg text-left text-sm font-medium border truncate"
+                  style={{
+                    borderColor: isSelected ? 'var(--tg-theme-button-color)' : 'var(--tg-theme-hint-color)',
+                    background: isSelected ? 'var(--tg-theme-button-color)' : 'var(--tg-theme-secondary-bg-color)',
+                    color: isSelected ? 'var(--tg-theme-button-text-color)' : undefined,
+                  }}
+                  title={p.name || '—'}
+                >
+                  {p.name || '—'}
+                </button>
+              )
+            })}
+          </div>
           {alreadyPlayedWithSelected && (
             <p className="text-amber-600 text-sm mb-2">Матч с этим соперником уже внесён. Выберите другого.</p>
           )}
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-1 text-[var(--tg-theme-hint-color)]">
-              Соперник
-            </label>
-            <Listbox value={selectedOpponent} onChange={setSelectedOpponent}>
-              <div className="relative">
-                <Listbox.Button
-                  className="relative w-full rounded-lg border border-[var(--tg-theme-hint-color)]/40 py-2.5 pl-3 pr-10 text-left focus:outline-none focus:ring-2 focus:ring-[var(--tg-theme-button-color)]"
-                  style={{ background: 'var(--tg-theme-secondary-bg-color)' }}
-                >
-                  <span className="block truncate">
-                    {selectedOpponent?.name || 'Выберите соперника'}
-                  </span>
-                  <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-                    <ChevronIcon />
-                  </span>
-                </Listbox.Button>
-                <Transition
-                  as={Fragment}
-                  leave="transition ease-in duration-100"
-                  leaveFrom="opacity-100"
-                  leaveTo="opacity-0"
-                >
-                  <Listbox.Options
-                    className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg py-1 shadow-lg focus:outline-none"
-                    style={{
-                      background: 'var(--tg-theme-bg-color)',
-                      border: '1px solid var(--tg-theme-hint-color)',
-                    }}
-                  >
-                    {opponentList.map((p) => (
-                      <Listbox.Option
-                        key={p.id}
-                        value={p}
-                        className={({ active }) =>
-                          `relative cursor-pointer select-none py-2 pl-3 pr-9 rounded ${
-                            active ? 'bg-[var(--tg-theme-secondary-bg-color)]' : ''
-                          }`
-                        }
-                      >
-                        <span className="block truncate">{p.name || '—'}</span>
-                      </Listbox.Option>
-                    ))}
-                  </Listbox.Options>
-                </Transition>
-              </div>
-            </Listbox>
-          </div>
 
           {selectedOpponent && !alreadyPlayedWithSelected && (
             <div className="mb-4">

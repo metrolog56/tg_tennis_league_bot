@@ -23,7 +23,12 @@ function DivisionMatrix({ divisionNumber, matrixData }) {
     return `${p1Sets}-${p2Sets}`
   }
 
-  const shortName = (name) => (name || '').split(' ')[0] || '—'
+  // Имя + инициал фамилии, чтобы различать одноимённых (напр. Дмитрий Б. и Дмитрий Р.)
+  const displayName = (name) => {
+    const parts = (name || '').trim().split(/\s+/).filter(Boolean)
+    if (parts.length >= 2) return `${parts[0]} ${parts[1][0]}.`
+    return name || '—'
+  }
 
   if (!players.length) return null
 
@@ -37,7 +42,7 @@ function DivisionMatrix({ divisionNumber, matrixData }) {
               <th className="p-1.5 text-left min-w-[60px] sticky left-0 z-10 bg-[var(--tg-theme-secondary-bg-color)]"></th>
               {players.map((p) => (
                 <th key={p.id} className="p-1.5 text-center min-w-[44px] max-w-[70px] truncate" title={p.name}>
-                  {shortName(p.name)}
+                  {displayName(p.name)}
                 </th>
               ))}
             </tr>
@@ -46,7 +51,7 @@ function DivisionMatrix({ divisionNumber, matrixData }) {
             {players.map((p1) => (
               <tr key={p1.id}>
                 <td className="p-1.5 font-medium sticky left-0 z-10 bg-[var(--tg-theme-bg-color)] border-r border-[var(--tg-theme-hint-color)]/20 min-w-[60px] truncate" title={p1.name}>
-                  {shortName(p1.name)}
+                  {displayName(p1.name)}
                 </td>
                 {players.map((p2) => (
                   <td
