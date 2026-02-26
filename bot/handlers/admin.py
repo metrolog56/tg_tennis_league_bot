@@ -73,7 +73,7 @@ async def cmd_newseason(message: Message) -> None:
             "month": month,
             "name": name,
             "status": "active",
-        }).select().execute()
+        }).execute()
         if r.data and len(r.data) > 0:
             await message.answer(f"Сезон создан: <b>{name}</b> (id: {r.data[0]['id']})")
         else:
@@ -109,7 +109,7 @@ async def cmd_adddivision(message: Message, command: CommandObject) -> None:
             "season_id": season["id"],
             "number": num,
             "coef": coef,
-        }).select().execute()
+        }).execute()
         if r.data and len(r.data) > 0:
             await message.answer(f"Дивизион №{num} создан в сезоне {season.get('name', '')}.")
         else:

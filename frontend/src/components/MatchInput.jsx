@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Listbox, Transition, Dialog } from '@headlessui/react'
 import { Fragment } from 'react'
-import { submitMatchResult } from '../api/supabase'
+import { submitMatchForConfirmation } from '../api/supabase'
 import { previewRatingChange } from '../utils/ratingCalc'
 
 function ChevronIcon() {
@@ -27,9 +27,10 @@ export default function MatchInput({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  const opponentList = (opponents || []).filter(
-    (p) => (existingMatchesByOpponentId || {})[p.id] !== 'played'
-  )
+  const opponentList = (opponents || []).filter((p) => {
+    const status = (existingMatchesByOpponentId || {})[p.id]
+    return status !== 'played' && status !== 'pending_confirm'
+  })
   const alreadyPlayedWithSelected = selectedOpponent && (existingMatchesByOpponentId || {})[selectedOpponent.id] === 'played'
   const myRating = Number(currentPlayerRating) || 100
   const oppRating = Number(selectedOpponent?.rating) || 100
@@ -53,7 +54,7 @@ export default function MatchInput({
     setSaving(true)
     try {
       const [sets1, sets2] = scoreChoice
-      await submitMatchResult(
+      await submitMatchForConfirmation(
         divisionId,
         currentPlayerId,
         selectedOpponent.id,
@@ -61,7 +62,9 @@ export default function MatchInput({
         sets2,
         currentPlayerId
       )
-      onSaved?.()
+      const opponentName = selectedOpponent.name || 'соперник'
+      onSaved?.(opponentName)
+      onClose?.()
     } catch (e) {
       setError(e?.message || 'Ошибка сохранения')
     } finally {

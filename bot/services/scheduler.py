@@ -1,6 +1,7 @@
 """
-Планировщик: ежедневная проверка последнего дня месяца и закрытие тура.
-APScheduler, задача в 23:55.
+Планировщик: ежедневная проверка последнего дня месяца и закрытие тура;
+периодическая рассылка уведомлений о матчах, ожидающих подтверждения.
+APScheduler: close_tour в 23:55, pending_confirm уведомления каждые 2 мин.
 """
 import calendar
 import logging
@@ -63,14 +64,17 @@ async def close_tour(bot: Optional["Bot"] = None) -> str:
     season_id = season["id"]
     season_name = season.get("name", "")
 
-    # 2. Все pending матчи в дивизионах этого сезона → not_played, 0-0
+    # 2. Все pending и pending_confirm матчи в дивизионах этого сезона → not_played, 0-0
     divs_r = client.table("divisions").select("id").eq("season_id", season_id).execute()
     for d in divs_r.data or []:
-        client.table("matches").update({
-            "status": "not_played",
-            "sets_player1": 0,
-            "sets_player2": 0,
-        }).eq("division_id", d["id"]).eq("status", "pending").execute()
+        for status in ("pending", "pending_confirm"):
+            client.table("matches").update({
+                "status": "not_played",
+                "sets_player1": 0,
+                "sets_player2": 0,
+                "submitted_by": None,
+                "notification_sent_at": None,
+            }).eq("division_id", d["id"]).eq("status", status).execute()
 
     # 3–4. Позиции в каждом дивизионе: очки → личная встреча → разница сетов
     lines = [f"📋 <b>Тур закрыт: {season_name}</b>\n"]
@@ -184,7 +188,7 @@ def prepare_next_season() -> Optional[str]:
         "month": next_month,
         "name": next_name,
         "status": "active",
-    }).select().execute()
+    }).execute()
     if not new_season_r.data:
         return None
     new_season_id = new_season_r.data[0]["id"]
@@ -208,7 +212,7 @@ def prepare_next_season() -> Optional[str]:
             "season_id": new_season_id,
             "number": num,
             "coef": coef,
-        }).select().execute()
+        }).execute()
         if r.data:
             new_div_ids[num] = r.data[0]["id"]
 
@@ -261,6 +265,65 @@ def prepare_next_season() -> Optional[str]:
     return new_season_id
 
 
+async def _send_pending_confirm_notifications(bot: Optional["Bot"] = None) -> None:
+    """
+    Найти матчи status=pending_confirm с notification_sent_at IS NULL,
+    отправить сопернику (не submitted_by) сообщение со ссылкой на WebApp,
+    обновить notification_sent_at.
+    """
+    if not bot:
+        return
+    webapp_url = (os.getenv("WEBAPP_URL") or "").strip().rstrip("/")
+    if not webapp_url:
+        logger.debug("WEBAPP_URL not set, skip pending_confirm notifications")
+        return
+    try:
+        client = _get_client()
+        r = (
+            client.table("matches")
+            .select("id, player1_id, player2_id, sets_player1, sets_player2, submitted_by")
+            .eq("status", "pending_confirm")
+            .is_("notification_sent_at", "null")
+            .execute()
+        )
+        for m in r.data or []:
+            match_id = m["id"]
+            submitted_by = m.get("submitted_by")
+            p1, p2 = m.get("player1_id"), m.get("player2_id")
+            opponent_id = p2 if submitted_by == p1 else p1
+            s1 = m.get("sets_player1") or 0
+            s2 = m.get("sets_player2") or 0
+            score = f"{s1}:{s2}"
+            # Имя вносящего
+            submitter_r = client.table("players").select("name").eq("id", submitted_by).execute()
+            submitter_name = (submitter_r.data or [{}])[0].get("name", "Игрок") if submitter_r.data else "Игрок"
+            # telegram_id соперника
+            opp_r = client.table("players").select("telegram_id").eq("id", opponent_id).execute()
+            if not opp_r.data or opp_r.data[0].get("telegram_id") is None:
+                logger.warning("No telegram_id for opponent %s, match %s", opponent_id, match_id)
+                continue
+            telegram_id = int(opp_r.data[0]["telegram_id"])
+            confirm_url = f"{webapp_url}#/confirm-match/{match_id}"
+            text = (
+                f"{submitter_name} внёс результат вашего матча: {score}. "
+                "Подтвердите или отклоните результат."
+            )
+            try:
+                from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+                kb = InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="Подтвердить / Отклонить", url=confirm_url)],
+                ])
+                await bot.send_message(telegram_id, text, reply_markup=kb)
+            except Exception as e:
+                logger.warning("Failed to send pending_confirm notification to %s: %s", telegram_id, e)
+                continue
+            now_iso = datetime.now(timezone.utc).isoformat()
+            client.table("matches").update({"notification_sent_at": now_iso}).eq("id", match_id).execute()
+            logger.info("Sent pending_confirm notification for match %s to player %s", match_id, opponent_id)
+    except Exception as e:
+        logger.exception("_send_pending_confirm_notifications failed: %s", e)
+
+
 async def _daily_check(bot: Optional["Bot"] = None) -> None:
     if not _is_last_day_of_month():
         return
@@ -287,5 +350,11 @@ def start_scheduler(bot: Optional["Bot"] = None) -> None:
         args=[bot],
         id="close_tour_daily",
     )
+    _scheduler.add_job(
+        _send_pending_confirm_notifications,
+        CronTrigger(minute="*/2"),
+        args=[bot],
+        id="pending_confirm_notify",
+    )
     _scheduler.start()
-    logger.info("Scheduler started (daily 23:55)")
+    logger.info("Scheduler started (daily 23:55, pending_confirm every 2 min)")

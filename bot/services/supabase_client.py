@@ -16,10 +16,16 @@ def _get_client() -> Client:
     global _client
     if _client is not None:
         return _client
-    url = os.getenv("SUPABASE_URL")
-    key = os.getenv("SUPABASE_KEY")
+    url = (os.getenv("SUPABASE_URL") or "").strip()
+    key = (os.getenv("SUPABASE_KEY") or "").strip()
     if not url or not key:
         raise RuntimeError("SUPABASE_URL and SUPABASE_KEY must be set")
+    # Диагностика без вывода ключа: JWT обычно начинается с eyJ, длина сотни символов
+    logger.info(
+        "Supabase: key length=%d, looks_like_jwt=%s",
+        len(key),
+        key.startswith("eyJ") if key else False,
+    )
     _client = create_client(url, key)
     return _client
 
@@ -58,7 +64,7 @@ def create_player(
         }
         if is_admin:
             row["is_admin"] = True
-        r = _get_client().table("players").insert(row).select().execute()
+        r = _get_client().table("players").insert(row).execute()
         if r.data and len(r.data) > 0:
             return r.data[0]
         return None
@@ -268,7 +274,7 @@ def submit_match_result(
                 "status": "played",
                 "submitted_by": submitted_by_id,
                 "played_at": now_iso,
-            }).select().execute()
+            }).execute()
             match_id = ins.data[0]["id"] if ins.data else None
             if not match_id:
                 return None, "Не удалось создать матч.", {}

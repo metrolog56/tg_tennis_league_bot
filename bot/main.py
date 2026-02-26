@@ -20,11 +20,14 @@ logger = logging.getLogger(__name__)
 
 
 async def main() -> None:
+    from pathlib import Path
     from dotenv import load_dotenv
     import os
 
-    load_dotenv()
-    token = os.getenv("BOT_TOKEN")
+    # Загружать .env из каталога bot, чтобы не зависеть от текущей рабочей директории
+    bot_dir = Path(__file__).resolve().parent
+    load_dotenv(bot_dir / ".env")
+    token = (os.getenv("BOT_TOKEN") or "").strip()
     if not token:
         raise ValueError("BOT_TOKEN not set in .env")
 
@@ -35,10 +38,10 @@ async def main() -> None:
     storage = MemoryStorage()
     dp = Dispatcher(storage=storage)
 
-    dp.include_router(common.router, tags=["common"])
-    dp.include_router(results.router, tags=["results"])
-    dp.include_router(rating.router, tags=["rating"])
-    dp.include_router(admin.router, tags=["admin"])
+    dp.include_router(common.router)
+    dp.include_router(results.router)
+    dp.include_router(rating.router)
+    dp.include_router(admin.router)
 
     start_scheduler(bot)
     logger.info("Bot starting...")
