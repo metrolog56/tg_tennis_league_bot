@@ -20,17 +20,23 @@ export async function getPlayerByTelegramId(telegramId) {
   return data
 }
 
+let seasonCache = null
+
 export async function getCurrentSeason() {
-  const { data, error } = await supabase
-    .from('seasons')
-    .select('*')
-    .eq('status', 'active')
-    .order('year', { ascending: false })
-    .order('month', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-  if (error) throw error
-  return data
+  if (seasonCache !== null) return seasonCache
+  seasonCache = (async () => {
+    const { data, error } = await supabase
+      .from('seasons')
+      .select('*')
+      .eq('status', 'active')
+      .order('year', { ascending: false })
+      .order('month', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (error) throw error
+    return data
+  })()
+  return seasonCache
 }
 
 export async function getPlayerDivision(playerId, seasonId) {

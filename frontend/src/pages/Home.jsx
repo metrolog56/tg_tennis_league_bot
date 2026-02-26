@@ -63,17 +63,45 @@ export default function Home({ telegramId }) {
   }, [telegramId])
 
   if (!telegramId) {
+    const botName = import.meta.env.VITE_TELEGRAM_BOT_NAME || ''
+    const telegramLink = botName ? `https://t.me/${botName.replace('@', '')}` : null
     return (
-      <div className="p-4 min-w-[320px]">
-        <p className="text-[var(--tg-theme-hint-color)]">Откройте приложение из Telegram.</p>
+      <div className="p-4 min-w-[320px] max-w-lg mx-auto">
+        <h1 className="text-xl font-bold mb-2">🏠 Главная</h1>
+        <p className="text-[var(--tg-theme-text-color)] mb-3">
+          Откройте приложение в Telegram, чтобы видеть свой дивизион и вносить результаты.
+        </p>
+        {telegramLink ? (
+          <a
+            href={telegramLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block py-2 px-4 rounded-xl font-medium text-white"
+            style={{ background: 'var(--tg-theme-button-color)', color: 'var(--tg-theme-button-text-color)' }}
+          >
+            Открыть в Telegram
+          </a>
+        ) : (
+          <p className="text-sm text-[var(--tg-theme-hint-color)]">
+            Запустите Mini App из меню бота в Telegram.
+          </p>
+        )}
       </div>
     )
   }
 
   if (loading) {
     return (
-      <div className="p-4 min-w-[320px]">
-        <p className="text-[var(--tg-theme-hint-color)]">Загрузка...</p>
+      <div className="p-4 min-w-[320px] max-w-lg mx-auto">
+        <h1 className="text-xl font-bold mb-2">🏠 Главная</h1>
+        <p className="text-[var(--tg-theme-hint-color)] mb-4">Загрузка...</p>
+        <div className="rounded-lg border border-[var(--tg-theme-hint-color)]/30 overflow-hidden animate-pulse">
+          <div className="h-10 bg-[var(--tg-theme-secondary-bg-color)]" />
+          <div className="h-12 bg-[var(--tg-theme-bg-color)]" />
+          <div className="h-12 bg-[var(--tg-theme-secondary-bg-color)]/50" />
+          <div className="h-12 bg-[var(--tg-theme-bg-color)]" />
+          <div className="h-12 bg-[var(--tg-theme-secondary-bg-color)]/50" />
+        </div>
       </div>
     )
   }

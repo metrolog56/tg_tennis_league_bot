@@ -1,9 +1,11 @@
-import { HashRouter, Routes, Route, NavLink } from 'react-router-dom'
+import { useEffect } from 'react'
+import { HashRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom'
 import Home from './pages/Home'
 import Rating from './pages/Rating'
 import Division from './pages/Division'
 import Rules from './pages/Rules'
 import { useTelegram } from './hooks/useTelegram'
+import { getCurrentSeason } from './api/supabase'
 
 const NAV_HEIGHT = 64
 
@@ -41,8 +43,10 @@ function Nav() {
 function Layout({ children }) {
   return (
     <div
-      className="min-h-screen min-w-[320px] flex flex-col safe-area-top"
+      className="min-w-[320px] flex flex-col safe-area-top"
       style={{
+        height: '100vh',
+        minHeight: '100dvh',
         background: 'var(--tg-theme-bg-color)',
         color: 'var(--tg-theme-text-color)',
       }}
@@ -50,6 +54,7 @@ function Layout({ children }) {
       <main
         className="flex-1 overflow-auto"
         style={{
+          minHeight: 0,
           paddingBottom: NAV_HEIGHT + 8,
           paddingTop: 'max(env(safe-area-inset-top, 0px), 8px)',
         }}
@@ -65,6 +70,10 @@ function App() {
   const { user } = useTelegram()
   const telegramId = user?.id ?? null
 
+  useEffect(() => {
+    getCurrentSeason().catch(() => {})
+  }, [])
+
   return (
     <HashRouter>
       <Layout>
@@ -74,6 +83,7 @@ function App() {
           <Route path="/division" element={<Division telegramId={telegramId} />} />
           <Route path="/division/:id" element={<Division telegramId={telegramId} />} />
           <Route path="/rules" element={<Rules />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>
     </HashRouter>
