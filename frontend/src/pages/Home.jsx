@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { Dialog } from '@headlessui/react'
 import {
   getPlayerByTelegramId,
   getCurrentSeason,
@@ -46,22 +47,17 @@ export default function Home({ telegramId }) {
         setDivisionData(divData)
         if (divData?.division?.id) {
           const divisionId = divData.division.id
-          const st = await getDivisionStandings(divisionId)
+          const [st, mat, pending] = await Promise.all([
+            getDivisionStandings(divisionId),
+            getDivisionMatches(divisionId),
+            getPendingConfirmationForPlayer(p.id),
+          ])
           if (!cancelled) {
-            setStandings(st)
+            setStandings(st || [])
+            setMatchesMatrix(mat)
+            setPendingConfirmation(pending || [])
             setLoading(false)
           }
-          const loadMatchesAndPending = () =>
-            Promise.all([
-              getDivisionMatches(divisionId),
-              getPendingConfirmationForPlayer(p.id),
-            ]).then(([mat, pending]) => {
-              if (!cancelled) {
-                setMatchesMatrix(mat)
-                setPendingConfirmation(pending || [])
-              }
-            }).catch(() => {})
-          loadMatchesAndPending()
         } else {
           setLoading(false)
         }
@@ -81,7 +77,6 @@ export default function Home({ telegramId }) {
     if (!msg || !player?.id || !divisionData?.division?.id) return
     setFlashMessage(msg)
     navigate(location.pathname, { replace: true, state: {} })
-    const t = setTimeout(() => setFlashMessage(''), 4000)
     let cancelled = false
     Promise.all([
       getDivisionMatches(divisionData.division.id),
@@ -92,7 +87,7 @@ export default function Home({ telegramId }) {
         setPendingConfirmation(pending || [])
       }
     }).catch(() => {})
-    return () => { clearTimeout(t); cancelled = true }
+    return () => { cancelled = true }
   }, [location.state?.message, location.pathname, navigate, player?.id, divisionData?.division?.id])
 
   if (!telegramId) {
@@ -199,11 +194,30 @@ export default function Home({ telegramId }) {
   return (
     <div className="p-4 min-w-[320px] max-w-lg mx-auto">
       <h1 className="text-xl font-bold mb-2">🏠 Главная</h1>
+
       {flashMessage && (
-        <p className="text-sm mb-3 px-3 py-2 rounded-lg" style={{ background: 'var(--tg-theme-button-color)', color: 'var(--tg-theme-button-text-color)' }}>
-          {flashMessage}
-        </p>
+        <Dialog open onClose={() => setFlashMessage('')} className="relative z-50">
+          <div className="fixed inset-0 bg-black/50" aria-hidden="true" />
+          <div className="fixed inset-0 flex items-center justify-center p-4">
+            <Dialog.Panel
+              className="w-full max-w-sm rounded-2xl p-6 shadow-xl"
+              style={{ background: 'var(--tg-theme-bg-color)', color: 'var(--tg-theme-text-color)' }}
+            >
+              <Dialog.Title className="text-lg font-bold mb-3">Уведомление</Dialog.Title>
+              <p className="text-base mb-6">{flashMessage}</p>
+              <button
+                type="button"
+                onClick={() => setFlashMessage('')}
+                className="w-full py-3 rounded-xl font-medium text-white"
+                style={{ background: 'var(--tg-theme-button-color)', color: 'var(--tg-theme-button-text-color)' }}
+              >
+                ОК
+              </button>
+            </Dialog.Panel>
+          </div>
+        </Dialog>
       )}
+
       <p className="text-sm text-[var(--tg-theme-hint-color)] mb-4">
         {season.name} · Дивизион {division.number}
       </p>
@@ -249,23 +263,29 @@ export default function Home({ telegramId }) {
       </div>
 
       {pendingConfirmation.length > 0 && (
-        <div className="mb-4 p-3 rounded-lg border border-[var(--tg-theme-hint-color)]/30" style={{ background: 'var(--tg-theme-secondary-bg-color)' }}>
-          <p className="text-sm font-medium mb-2">Ожидает подтверждения от вас</p>
-          <ul className="space-y-1.5">
+        <div className="mb-4 p-4 rounded-xl border border-[var(--tg-theme-hint-color)]/30" style={{ background: 'var(--tg-theme-secondary-bg-color)' }}>
+          <h2 className="text-base font-bold mb-3">Ожидает подтверждения от вас</h2>
+          <ul className="space-y-3">
             {pendingConfirmation.map((m) => {
               const submitterName = divisionPlayers.find(
                 (d) => (d.player?.id || d.player_id) === m.submitted_by
               )?.player?.name || 'Игрок'
               const score = `${m.sets_player1 ?? 0}:${m.sets_player2 ?? 0}`
               return (
-                <li key={m.id}>
-                  <a
-                    href={`#/confirm-match/${m.id}`}
-                    onClick={(e) => { e.preventDefault(); navigate(`/confirm-match/${m.id}`) }}
-                    className="text-sm text-[var(--tg-theme-link-color)] underline"
+                <li
+                  key={m.id}
+                  className="p-3 rounded-lg border border-[var(--tg-theme-hint-color)]/20"
+                  style={{ background: 'var(--tg-theme-bg-color)' }}
+                >
+                  <p className="text-sm mb-2">{submitterName} внёс результат {score}</p>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/confirm-match/${m.id}`)}
+                    className="w-full py-2.5 rounded-xl font-medium text-white text-sm"
+                    style={{ background: 'var(--tg-theme-button-color)', color: 'var(--tg-theme-button-text-color)' }}
                   >
-                    {submitterName} внёс результат {score} — подтвердите
-                  </a>
+                    Подтвердить / Отклонить
+                  </button>
                 </li>
               )
             })}
@@ -297,7 +317,6 @@ export default function Home({ telegramId }) {
             setShowMatchInput(false)
             if (opponentName) {
               setFlashMessage(`Результат отправлен на подтверждение ${opponentName}. После подтверждения счёт и рейтинг обновятся.`)
-              setTimeout(() => setFlashMessage(''), 5000)
             }
             if (!division?.id || !player?.id) return
             const [st, mat, pending] = await Promise.all([
