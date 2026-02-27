@@ -273,6 +273,10 @@ export default function Home({ telegramId }) {
               const submitterName = divisionPlayers.find(
                 (d) => (d.player?.id || d.player_id) === m.submitted_by
               )?.player?.name || 'Игрок'
+              const otherPlayerId = m.player1_id === myId ? m.player2_id : m.player1_id
+              const otherPlayerName = divisionPlayers.find(
+                (d) => (d.player?.id || d.player_id) === otherPlayerId
+              )?.player?.name || 'Соперник'
               const mySets = m.player1_id === myId ? (m.sets_player1 ?? 0) : (m.sets_player2 ?? 0)
               const oppSets = m.player1_id === myId ? (m.sets_player2 ?? 0) : (m.sets_player1 ?? 0)
               const isBusy = confirmAction === m.id
@@ -318,16 +322,17 @@ export default function Home({ telegramId }) {
               }
               return (
                 <li
-                  key={m.id}
+                  key={`${m.id}-${m.player1_id}-${m.player2_id}`}
                   className="p-4 rounded-xl border border-[var(--tg-theme-hint-color)]/30"
                   style={{ background: 'var(--tg-theme-secondary-bg-color)' }}
                 >
                   <h3 className="text-lg font-bold mb-3">Подтверждение результата матча</h3>
+                  <p className="text-sm text-[var(--tg-theme-hint-color)] mb-1">Матч с {otherPlayerName}</p>
                   <p className="text-[var(--tg-theme-text-color)] mb-2">
                     <strong>{submitterName}</strong> внёс результат матча:
                   </p>
                   <p className="text-lg font-medium mb-2">
-                    Вы — {mySets}, {submitterName} — {oppSets}
+                    Вы — {mySets}, {otherPlayerName} — {oppSets}
                   </p>
                   <p className="text-sm text-[var(--tg-theme-hint-color)] mb-4">
                     Подтвердите, если счёт верный, или отклоните.
