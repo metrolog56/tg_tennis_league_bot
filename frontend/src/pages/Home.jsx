@@ -8,6 +8,8 @@ import {
   getDivisionStandings,
   getDivisionMatches,
   getPendingConfirmationForPlayer,
+  confirmMatchResult,
+  rejectMatchResult,
 } from '../api/supabase'
 import MatchInput from '../components/MatchInput'
 
@@ -23,6 +25,7 @@ export default function Home({ telegramId }) {
   const location = useLocation()
   const navigate = useNavigate()
   const [flashMessage, setFlashMessage] = useState('')
+  const [confirmAction, setConfirmAction] = useState(null)
 
   useEffect(() => {
     if (!telegramId) {
@@ -263,29 +266,94 @@ export default function Home({ telegramId }) {
       </div>
 
       {pendingConfirmation.length > 0 && (
-        <div className="mb-4 p-4 rounded-xl border border-[var(--tg-theme-hint-color)]/30" style={{ background: 'var(--tg-theme-secondary-bg-color)' }}>
+        <div className="mb-4">
           <h2 className="text-base font-bold mb-3">Ожидает подтверждения от вас</h2>
-          <ul className="space-y-3">
+          <ul className="space-y-4">
             {pendingConfirmation.map((m) => {
               const submitterName = divisionPlayers.find(
                 (d) => (d.player?.id || d.player_id) === m.submitted_by
               )?.player?.name || 'Игрок'
-              const score = `${m.sets_player1 ?? 0}:${m.sets_player2 ?? 0}`
+              const mySets = m.player1_id === myId ? (m.sets_player1 ?? 0) : (m.sets_player2 ?? 0)
+              const oppSets = m.player1_id === myId ? (m.sets_player2 ?? 0) : (m.sets_player1 ?? 0)
+              const isBusy = confirmAction === m.id
+              const handleConfirm = async () => {
+                setConfirmAction(m.id)
+                try {
+                  await confirmMatchResult(m.id, myId)
+                  setFlashMessage('Результат подтверждён.')
+                  if (!division?.id || !player?.id) return
+                  const [st, mat, pending] = await Promise.all([
+                    getDivisionStandings(division.id),
+                    getDivisionMatches(division.id),
+                    getPendingConfirmationForPlayer(player.id),
+                  ])
+                  setStandings(st)
+                  setMatchesMatrix(mat)
+                  setPendingConfirmation(pending || [])
+                } catch (err) {
+                  setFlashMessage(err?.message || 'Ошибка')
+                } finally {
+                  setConfirmAction(null)
+                }
+              }
+              const handleReject = async () => {
+                setConfirmAction(m.id)
+                try {
+                  await rejectMatchResult(m.id, myId)
+                  setFlashMessage('Результат отклонён.')
+                  if (!division?.id || !player?.id) return
+                  const [st, mat, pending] = await Promise.all([
+                    getDivisionStandings(division.id),
+                    getDivisionMatches(division.id),
+                    getPendingConfirmationForPlayer(player.id),
+                  ])
+                  setStandings(st)
+                  setMatchesMatrix(mat)
+                  setPendingConfirmation(pending || [])
+                } catch (err) {
+                  setFlashMessage(err?.message || 'Ошибка')
+                } finally {
+                  setConfirmAction(null)
+                }
+              }
               return (
                 <li
                   key={m.id}
-                  className="p-3 rounded-lg border border-[var(--tg-theme-hint-color)]/20"
-                  style={{ background: 'var(--tg-theme-bg-color)' }}
+                  className="p-4 rounded-xl border border-[var(--tg-theme-hint-color)]/30"
+                  style={{ background: 'var(--tg-theme-secondary-bg-color)' }}
                 >
-                  <p className="text-sm mb-2">{submitterName} внёс результат {score}</p>
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/confirm-match/${m.id}`)}
-                    className="w-full py-2.5 rounded-xl font-medium text-white text-sm"
-                    style={{ background: 'var(--tg-theme-button-color)', color: 'var(--tg-theme-button-text-color)' }}
-                  >
-                    Подтвердить / Отклонить
-                  </button>
+                  <h3 className="text-lg font-bold mb-3">Подтверждение результата матча</h3>
+                  <p className="text-[var(--tg-theme-text-color)] mb-2">
+                    <strong>{submitterName}</strong> внёс результат матча:
+                  </p>
+                  <p className="text-lg font-medium mb-2">
+                    Вы — {mySets}, {submitterName} — {oppSets}
+                  </p>
+                  <p className="text-sm text-[var(--tg-theme-hint-color)] mb-4">
+                    Подтвердите, если счёт верный, или отклоните.
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={handleReject}
+                      disabled={isBusy}
+                      className="flex-1 py-3 rounded-xl border border-[var(--tg-theme-hint-color)]/40 disabled:opacity-50"
+                    >
+                      {isBusy ? 'Отправка...' : 'Отклонить'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleConfirm}
+                      disabled={isBusy}
+                      className="flex-1 py-3 rounded-xl font-medium text-white disabled:opacity-50"
+                      style={{
+                        background: 'var(--tg-theme-button-color)',
+                        color: 'var(--tg-theme-button-text-color)',
+                      }}
+                    >
+                      {isBusy ? 'Отправка...' : 'Подтвердить'}
+                    </button>
+                  </div>
                 </li>
               )
             })}

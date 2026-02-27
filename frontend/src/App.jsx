@@ -4,7 +4,6 @@ import Home from './pages/Home'
 import Rating from './pages/Rating'
 import Division from './pages/Division'
 import Rules from './pages/Rules'
-import ConfirmMatch from './pages/ConfirmMatch'
 import { useTelegram } from './hooks/useTelegram'
 import { getCurrentSeason } from './api/supabase'
 
@@ -83,7 +82,6 @@ function App() {
           <Route path="/rating" element={<Rating telegramId={telegramId} />} />
           <Route path="/division" element={<Division telegramId={telegramId} />} />
           <Route path="/division/:id" element={<Division telegramId={telegramId} />} />
-          <Route path="/confirm-match/:matchId" element={<ConfirmMatch telegramId={telegramId} />} />
           <Route path="/rules" element={<Rules />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
