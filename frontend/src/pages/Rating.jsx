@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { getTopRatingWithStats, getPlayerByTelegramId } from '../api/supabase'
+import { getTopRatingWithStats, getPlayerByPlatformId } from '../api/supabase'
 
-export default function Rating({ telegramId }) {
+export default function Rating({ platform, platformUserId }) {
   const [list, setList] = useState([])
   const [currentPlayerId, setCurrentPlayerId] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -13,7 +13,7 @@ export default function Rating({ telegramId }) {
       try {
         const [top, player] = await Promise.all([
           getTopRatingWithStats(50),
-          telegramId ? getPlayerByTelegramId(telegramId) : null,
+          platformUserId ? getPlayerByPlatformId(platform, platformUserId) : null,
         ])
         if (!cancelled) {
           setList(top || [])
@@ -26,12 +26,12 @@ export default function Rating({ telegramId }) {
       }
     }
     load()
-  }, [telegramId])
+  }, [platform, platformUserId])
 
   if (loading) {
     return (
       <div className="p-4 min-w-[320px]">
-        <p className="text-[var(--tg-theme-hint-color)]">Загрузка...</p>
+        <p className="text-[var(--app-hint)]">Загрузка...</p>
       </div>
     )
   }
@@ -50,9 +50,9 @@ export default function Rating({ telegramId }) {
     <div className="p-4 min-w-[320px] max-w-lg mx-auto">
       <h1 className="text-xl font-bold mb-4">📊 Рейтинг</h1>
 
-      <div className="rounded-lg border border-[var(--tg-theme-hint-color)]/30 overflow-hidden">
+      <div className="rounded-lg border border-[var(--app-hint)]/30 overflow-hidden">
         <table className="w-full text-sm">
-          <thead style={{ background: 'var(--tg-theme-secondary-bg-color)' }}>
+          <thead style={{ background: 'var(--app-secondary-bg)' }}>
             <tr>
               <th className="text-left p-2 w-12">#</th>
               <th className="text-left p-2">Игрок</th>
@@ -74,7 +74,7 @@ export default function Rating({ telegramId }) {
               return (
                 <tr
                   key={row.id}
-                  className={isCurrent ? 'bg-[var(--tg-theme-button-color)]/15' : ''}
+                  className={isCurrent ? 'bg-[var(--app-accent)]/15' : ''}
                 >
                   <td className="p-2">
                     {m ? <span>{m}</span> : i + 1}
@@ -97,7 +97,7 @@ export default function Rating({ telegramId }) {
       </div>
 
       {list.length === 0 && (
-        <p className="text-[var(--tg-theme-hint-color)] mt-4">Рейтинг пуст.</p>
+        <p className="text-[var(--app-hint)] mt-4">Рейтинг пуст.</p>
       )}
     </div>
   )

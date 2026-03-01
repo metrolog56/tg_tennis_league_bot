@@ -37,9 +37,9 @@ function DivisionMatrix({ divisionNumber, matrixData }) {
       <h2 className="text-lg font-semibold mb-2">Дивизион {divisionNumber}</h2>
       <div className="table-scroll">
         <table className="w-full text-sm border-collapse">
-          <thead style={{ background: 'var(--tg-theme-secondary-bg-color)' }}>
+          <thead style={{ background: 'var(--app-secondary-bg)' }}>
             <tr>
-              <th className="p-1.5 text-left min-w-[60px] sticky left-0 z-10 bg-[var(--tg-theme-secondary-bg-color)]"></th>
+              <th className="p-1.5 text-left min-w-[60px] sticky left-0 z-10 bg-[var(--app-secondary-bg)]"></th>
               {players.map((p) => (
                 <th key={p.id} className="p-1.5 text-center min-w-[44px] max-w-[70px] truncate" title={p.name}>
                   {displayName(p.name)}
@@ -50,13 +50,13 @@ function DivisionMatrix({ divisionNumber, matrixData }) {
           <tbody>
             {players.map((p1) => (
               <tr key={p1.id}>
-                <td className="p-1.5 font-medium sticky left-0 z-10 bg-[var(--tg-theme-bg-color)] border-r border-[var(--tg-theme-hint-color)]/20 min-w-[60px] truncate" title={p1.name}>
+                <td className="p-1.5 font-medium sticky left-0 z-10 bg-[var(--app-bg)] border-r border-[var(--app-hint)]/20 min-w-[60px] truncate" title={p1.name}>
                   {displayName(p1.name)}
                 </td>
                 {players.map((p2) => (
                   <td
                     key={p2.id}
-                    className="p-1.5 text-center border border-[var(--tg-theme-hint-color)]/20 min-w-[44px]"
+                    className="p-1.5 text-center border border-[var(--app-hint)]/20 min-w-[44px]"
                   >
                     {p1.id === p2.id ? '—' : getScore(p1.id, p2.id)}
                   </td>
@@ -70,7 +70,7 @@ function DivisionMatrix({ divisionNumber, matrixData }) {
   )
 }
 
-export default function Division() {
+export default function Division({ platform, platformUserId } = {}) {
   const [season, setSeason] = useState(null)
   const [divisions, setDivisions] = useState([])
   const [divisionMatrixMap, setDivisionMatrixMap] = useState({})
@@ -112,7 +112,7 @@ export default function Division() {
   if (loading) {
     return (
       <div className="p-4 min-w-[320px]">
-        <p className="text-[var(--tg-theme-hint-color)]">Загрузка...</p>
+        <p className="text-[var(--app-hint)]">Загрузка...</p>
       </div>
     )
   }
@@ -129,7 +129,7 @@ export default function Division() {
     return (
       <div className="p-4 min-w-[320px]">
         <h1 className="text-xl font-bold mb-4">🏓 Дивизионы</h1>
-        <p className="text-[var(--tg-theme-hint-color)]">Нет активного сезона.</p>
+        <p className="text-[var(--app-hint)]">Нет активного сезона.</p>
       </div>
     )
   }
@@ -138,7 +138,7 @@ export default function Division() {
     return (
       <div className="p-4 min-w-[320px]">
         <h1 className="text-xl font-bold mb-4">🏓 Дивизионы</h1>
-        <p className="text-[var(--tg-theme-hint-color)]">Нет дивизионов в текущем сезоне.</p>
+        <p className="text-[var(--app-hint)]">Нет дивизионов в текущем сезоне.</p>
       </div>
     )
   }
@@ -147,7 +147,7 @@ export default function Division() {
     <div className="p-4 min-w-[320px] max-w-4xl mx-auto">
       <h1 className="text-xl font-bold mb-2">🏓 Дивизионы</h1>
       {season?.name && (
-        <p className="text-sm text-[var(--tg-theme-hint-color)] mb-6">{season.name}</p>
+        <p className="text-sm text-[var(--app-hint)] mb-6">{season.name}</p>
       )}
 
       {divisions.map((d) => (

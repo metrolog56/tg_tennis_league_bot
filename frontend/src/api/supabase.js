@@ -11,13 +11,64 @@ if (!url || !key) {
 export const supabase = createClient(url || '', key || '')
 
 export async function getPlayerByTelegramId(telegramId) {
+  return getPlayerByPlatformId('telegram', telegramId)
+}
+
+const PLATFORM_COLUMN = { telegram: 'telegram_id', vk: 'vk_id' }
+
+export async function getPlayerByPlatformId(platform, platformUserId) {
+  if (!platformUserId) return null
+  const column = PLATFORM_COLUMN[platform]
+  if (!column) return null
   const { data, error } = await supabase
     .from('players')
     .select('*')
-    .eq('telegram_id', telegramId)
+    .eq(column, platformUserId)
     .maybeSingle()
   if (error) throw error
   return data
+}
+
+export async function registerPlayer(platform, platformUserId, name) {
+  const column = PLATFORM_COLUMN[platform]
+  if (!column) throw new Error('Unknown platform')
+  const row = { [column]: platformUserId, name }
+  const { data, error } = await supabase
+    .from('players')
+    .insert(row)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function linkAccountByCode(code, platform, platformUserId) {
+  const column = PLATFORM_COLUMN[platform]
+  if (!column) throw new Error('Unknown platform')
+  const { data: linkRow, error: findError } = await supabase
+    .from('link_codes')
+    .select('id, player_id')
+    .eq('code', code)
+    .eq('used', false)
+    .gt('expires_at', new Date().toISOString())
+    .maybeSingle()
+  if (findError) throw findError
+  if (!linkRow) throw new Error('Код не найден или истёк. Запросите новый в Telegram-боте (/link).')
+  const { error: updateError } = await supabase
+    .from('players')
+    .update({ [column]: platformUserId })
+    .eq('id', linkRow.player_id)
+  if (updateError) throw updateError
+  await supabase
+    .from('link_codes')
+    .update({ used: true })
+    .eq('id', linkRow.id)
+  return await supabase
+    .from('players')
+    .select('*')
+    .eq('id', linkRow.player_id)
+    .single()
+    .then(r => r.data)
 }
 
 let seasonCache = null
@@ -548,4 +599,84 @@ export async function submitMatchResult(divisionId, player1Id, player2Id, sets1,
   if (errHistory) throw errHistory
 
   return matchRow
+}
+
+// ── Game Requests ──
+
+export async function getActiveGameRequests(playerDivisionId) {
+  let query = supabase
+    .from('game_requests')
+    .select('*, player:players(id, name, telegram_username, vk_id)')
+    .eq('status', 'active')
+    .gt('expires_at', new Date().toISOString())
+    .order('created_at', { ascending: false })
+  const { data, error } = await query
+  if (error) throw error
+  return (data || []).filter((r) => {
+    if (r.type === 'casual') return true
+    return r.division_id === playerDivisionId
+  })
+}
+
+export async function getMyGameRequests(playerId) {
+  const { data, error } = await supabase
+    .from('game_requests')
+    .select('*, accepted_player:players!game_requests_accepted_by_fkey(id, name, telegram_username, vk_id)')
+    .eq('player_id', playerId)
+    .in('status', ['active', 'accepted'])
+    .order('created_at', { ascending: false })
+    .limit(5)
+  if (error) throw error
+  return data || []
+}
+
+export async function createGameRequest(playerId, type, divisionId = null) {
+  const { data: existing } = await supabase
+    .from('game_requests')
+    .select('id')
+    .eq('player_id', playerId)
+    .eq('status', 'active')
+    .limit(1)
+  if (existing?.length) throw new Error('У вас уже есть активный запрос. Отмените его, чтобы создать новый.')
+  const row = {
+    player_id: playerId,
+    type,
+    division_id: type === 'division' ? divisionId : null,
+  }
+  const { data, error } = await supabase
+    .from('game_requests')
+    .insert(row)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function acceptGameRequest(requestId, acceptedByPlayerId) {
+  const { data: req, error: fetchError } = await supabase
+    .from('game_requests')
+    .select('*')
+    .eq('id', requestId)
+    .single()
+  if (fetchError) throw fetchError
+  if (!req || req.status !== 'active') throw new Error('Запрос уже неактивен.')
+  if (req.player_id === acceptedByPlayerId) throw new Error('Нельзя откликнуться на свой запрос.')
+  const { data, error } = await supabase
+    .from('game_requests')
+    .update({ status: 'accepted', accepted_by: acceptedByPlayerId })
+    .eq('id', requestId)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function cancelGameRequest(requestId, playerId) {
+  const { error } = await supabase
+    .from('game_requests')
+    .update({ status: 'cancelled' })
+    .eq('id', requestId)
+    .eq('player_id', playerId)
+    .eq('status', 'active')
+  if (error) throw error
 }

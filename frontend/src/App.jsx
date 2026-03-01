@@ -4,7 +4,7 @@ import Home from './pages/Home'
 import Rating from './pages/Rating'
 import Division from './pages/Division'
 import Rules from './pages/Rules'
-import { useTelegram } from './hooks/useTelegram'
+import { usePlatform } from './hooks/usePlatform'
 import { getCurrentSeason } from './api/supabase'
 
 const NAV_HEIGHT = 64
@@ -17,7 +17,7 @@ function Nav() {
         to={to}
         className={({ isActive: a }) =>
           `flex flex-col items-center justify-center min-w-0 flex-1 py-3 px-2 text-sm transition-colors ${
-            a ? 'text-[var(--tg-theme-button-color)]' : 'text-[var(--tg-theme-hint-color)]'
+            a ? 'text-[var(--app-accent)]' : 'text-[var(--app-hint)]'
           }`
         }
         end={path === '/'}
@@ -29,8 +29,8 @@ function Nav() {
   }
   return (
     <nav
-      className="flex flex-shrink-0 items-stretch border-t border-[var(--tg-theme-hint-color)]/20 safe-area-pb"
-      style={{ background: 'var(--tg-theme-bg-color)', minHeight: NAV_HEIGHT }}
+      className="flex flex-shrink-0 items-stretch border-t border-[var(--app-hint)]/20 safe-area-pb"
+      style={{ background: 'var(--app-bg)', minHeight: NAV_HEIGHT }}
     >
       {link('/', 'Главная', '🏠')}
       {link('rating', 'Рейтинг', '📊')}
@@ -47,8 +47,8 @@ function Layout({ children }) {
       style={{
         height: '100vh',
         minHeight: '100dvh',
-        background: 'var(--tg-theme-bg-color)',
-        color: 'var(--tg-theme-text-color)',
+        background: 'var(--app-bg)',
+        color: 'var(--app-text)',
       }}
     >
       <main
@@ -67,8 +67,7 @@ function Layout({ children }) {
 }
 
 function App() {
-  const { user } = useTelegram()
-  const telegramId = user?.id ?? null
+  const { platform, userId } = usePlatform()
 
   useEffect(() => {
     getCurrentSeason().catch(() => {})
@@ -78,10 +77,10 @@ function App() {
     <HashRouter>
       <Layout>
         <Routes>
-          <Route index element={<Home telegramId={telegramId} />} />
-          <Route path="/rating" element={<Rating telegramId={telegramId} />} />
-          <Route path="/division" element={<Division telegramId={telegramId} />} />
-          <Route path="/division/:id" element={<Division telegramId={telegramId} />} />
+          <Route index element={<Home platform={platform} platformUserId={userId} />} />
+          <Route path="/rating" element={<Rating platform={platform} platformUserId={userId} />} />
+          <Route path="/division" element={<Division platform={platform} platformUserId={userId} />} />
+          <Route path="/division/:id" element={<Division platform={platform} platformUserId={userId} />} />
           <Route path="/rules" element={<Rules />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

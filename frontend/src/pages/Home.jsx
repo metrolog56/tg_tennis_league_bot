@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Dialog } from '@headlessui/react'
 import {
-  getPlayerByTelegramId,
+  getPlayerByPlatformId,
   getCurrentSeason,
   getPlayerDivision,
   getDivisionStandings,
@@ -12,8 +12,10 @@ import {
   rejectMatchResult,
 } from '../api/supabase'
 import MatchInput from '../components/MatchInput'
+import GameRequests from '../components/GameRequests'
+import LinkAccount from '../components/LinkAccount'
 
-export default function Home({ telegramId }) {
+export default function Home({ platform, platformUserId }) {
   const [player, setPlayer] = useState(null)
   const [divisionData, setDivisionData] = useState(null)
   const [standings, setStandings] = useState([])
@@ -28,7 +30,7 @@ export default function Home({ telegramId }) {
   const [confirmAction, setConfirmAction] = useState(null)
 
   useEffect(() => {
-    if (!telegramId) {
+    if (!platformUserId) {
       setLoading(false)
       return
     }
@@ -36,7 +38,7 @@ export default function Home({ telegramId }) {
     async function load() {
       try {
         const [p, season] = await Promise.all([
-          getPlayerByTelegramId(telegramId),
+          getPlayerByPlatformId(platform, platformUserId),
           getCurrentSeason(),
         ])
         if (cancelled) return
@@ -73,7 +75,7 @@ export default function Home({ telegramId }) {
     }
     load()
     return () => { cancelled = true }
-  }, [telegramId])
+  }, [platform, platformUserId])
 
   useEffect(() => {
     const msg = location.state?.message
@@ -93,14 +95,14 @@ export default function Home({ telegramId }) {
     return () => { cancelled = true }
   }, [location.state?.message, location.pathname, navigate, player?.id, divisionData?.division?.id])
 
-  if (!telegramId) {
+  if (!platformUserId) {
     const botName = import.meta.env.VITE_TELEGRAM_BOT_NAME || ''
     const telegramLink = botName ? `https://t.me/${botName.replace('@', '')}` : null
     return (
       <div className="p-4 min-w-[320px] max-w-lg mx-auto">
         <h1 className="text-xl font-bold mb-2">🏠 Главная</h1>
-        <p className="text-[var(--tg-theme-text-color)] mb-3">
-          Откройте приложение в Telegram, чтобы видеть свой дивизион и вносить результаты.
+        <p className="text-[var(--app-text)] mb-3">
+          Откройте приложение в Telegram или VK, чтобы видеть свой дивизион и вносить результаты.
         </p>
         {telegramLink ? (
           <a
@@ -108,13 +110,13 @@ export default function Home({ telegramId }) {
             target="_blank"
             rel="noopener noreferrer"
             className="inline-block py-2 px-4 rounded-xl font-medium text-white"
-            style={{ background: 'var(--tg-theme-button-color)', color: 'var(--tg-theme-button-text-color)' }}
+            style={{ background: 'var(--app-accent)', color: 'var(--app-accent-text)' }}
           >
             Открыть в Telegram
           </a>
         ) : (
-          <p className="text-sm text-[var(--tg-theme-hint-color)]">
-            Запустите Mini App из меню бота в Telegram.
+          <p className="text-sm text-[var(--app-hint)]">
+            Запустите Mini App из Telegram или VK.
           </p>
         )}
       </div>
@@ -125,13 +127,13 @@ export default function Home({ telegramId }) {
     return (
       <div className="p-4 min-w-[320px] max-w-lg mx-auto">
         <h1 className="text-xl font-bold mb-2">🏠 Главная</h1>
-        <p className="text-[var(--tg-theme-hint-color)] mb-4">Загрузка...</p>
-        <div className="rounded-lg border border-[var(--tg-theme-hint-color)]/30 overflow-hidden animate-pulse">
-          <div className="h-10 bg-[var(--tg-theme-secondary-bg-color)]" />
-          <div className="h-12 bg-[var(--tg-theme-bg-color)]" />
-          <div className="h-12 bg-[var(--tg-theme-secondary-bg-color)]/50" />
-          <div className="h-12 bg-[var(--tg-theme-bg-color)]" />
-          <div className="h-12 bg-[var(--tg-theme-secondary-bg-color)]/50" />
+        <p className="text-[var(--app-hint)] mb-4">Загрузка...</p>
+        <div className="rounded-lg border border-[var(--app-hint)]/30 overflow-hidden animate-pulse">
+          <div className="h-10 bg-[var(--app-secondary-bg)]" />
+          <div className="h-12 bg-[var(--app-bg)]" />
+          <div className="h-12 bg-[var(--app-secondary-bg)]/50" />
+          <div className="h-12 bg-[var(--app-bg)]" />
+          <div className="h-12 bg-[var(--app-secondary-bg)]/50" />
         </div>
       </div>
     )
@@ -146,9 +148,20 @@ export default function Home({ telegramId }) {
   }
 
   if (!player) {
+    if (platform === 'vk') {
+      return (
+        <LinkAccount
+          platform={platform}
+          platformUserId={platformUserId}
+          firstName=""
+          lastName=""
+          onLinked={(p) => { setPlayer(p); setLoading(true); window.location.reload() }}
+        />
+      )
+    }
     return (
       <div className="p-4 min-w-[320px]">
-        <p className="text-[var(--tg-theme-hint-color)]">Сначала зарегистрируйтесь в боте (/start).</p>
+        <p className="text-[var(--app-hint)]">Сначала зарегистрируйтесь в боте (/start).</p>
       </div>
     )
   }
@@ -157,7 +170,7 @@ export default function Home({ telegramId }) {
     return (
       <div className="p-4 min-w-[320px]">
         <h1 className="text-xl font-bold mb-4">🏠 Главная</h1>
-        <p className="text-[var(--tg-theme-hint-color)]">Вы пока не привязаны к дивизиону. Обратитесь к администратору.</p>
+        <p className="text-[var(--app-hint)]">Вы пока не привязаны к дивизиону. Обратитесь к администратору.</p>
       </div>
     )
   }
@@ -204,7 +217,7 @@ export default function Home({ telegramId }) {
           <div className="fixed inset-0 flex items-center justify-center p-4">
             <Dialog.Panel
               className="w-full max-w-sm rounded-2xl p-6 shadow-xl"
-              style={{ background: 'var(--tg-theme-bg-color)', color: 'var(--tg-theme-text-color)' }}
+              style={{ background: 'var(--app-bg)', color: 'var(--app-text)' }}
             >
               <Dialog.Title className="text-lg font-bold mb-3">Уведомление</Dialog.Title>
               <p className="text-base mb-6">{flashMessage}</p>
@@ -212,7 +225,7 @@ export default function Home({ telegramId }) {
                 type="button"
                 onClick={() => setFlashMessage('')}
                 className="w-full py-3 rounded-xl font-medium text-white"
-                style={{ background: 'var(--tg-theme-button-color)', color: 'var(--tg-theme-button-text-color)' }}
+                style={{ background: 'var(--app-accent)', color: 'var(--app-accent-text)' }}
               >
                 ОК
               </button>
@@ -221,13 +234,13 @@ export default function Home({ telegramId }) {
         </Dialog>
       )}
 
-      <p className="text-sm text-[var(--tg-theme-hint-color)] mb-4">
+      <p className="text-sm text-[var(--app-hint)] mb-4">
         {season.name} · Дивизион {division.number}
       </p>
 
-      <div className="rounded-lg border border-[var(--tg-theme-hint-color)]/30 overflow-hidden mb-4">
+      <div className="rounded-lg border border-[var(--app-hint)]/30 overflow-hidden mb-4">
         <table className="w-full text-sm">
-          <thead style={{ background: 'var(--tg-theme-secondary-bg-color)' }}>
+          <thead style={{ background: 'var(--app-secondary-bg)' }}>
             <tr>
               <th className="text-left p-2">Место</th>
               <th className="text-left p-2">Игрок</th>
@@ -249,7 +262,7 @@ export default function Home({ telegramId }) {
               return (
                 <tr
                   key={row.id}
-                  className={isMe ? 'bg-[var(--tg-theme-button-color)]/10' : ''}
+                  className={isMe ? 'bg-[var(--app-accent)]/10' : ''}
                 >
                   <td className="p-2">{i + 1}</td>
                   <td className="p-2 font-medium">{name}{isMe ? ' (вы)' : ''}</td>
@@ -323,18 +336,18 @@ export default function Home({ telegramId }) {
               return (
                 <li
                   key={`${m.id}-${m.player1_id}-${m.player2_id}`}
-                  className="p-4 rounded-xl border border-[var(--tg-theme-hint-color)]/30"
-                  style={{ background: 'var(--tg-theme-secondary-bg-color)' }}
+                  className="p-4 rounded-xl border border-[var(--app-hint)]/30"
+                  style={{ background: 'var(--app-secondary-bg)' }}
                 >
                   <h3 className="text-lg font-bold mb-3">Подтверждение результата матча</h3>
-                  <p className="text-sm text-[var(--tg-theme-hint-color)] mb-1">Матч с {otherPlayerName}</p>
-                  <p className="text-[var(--tg-theme-text-color)] mb-2">
+                  <p className="text-sm text-[var(--app-hint)] mb-1">Матч с {otherPlayerName}</p>
+                  <p className="text-[var(--app-text)] mb-2">
                     <strong>{submitterName}</strong> внёс результат матча:
                   </p>
                   <p className="text-lg font-medium mb-2">
                     Вы — {mySets}, {otherPlayerName} — {oppSets}
                   </p>
-                  <p className="text-sm text-[var(--tg-theme-hint-color)] mb-4">
+                  <p className="text-sm text-[var(--app-hint)] mb-4">
                     Подтвердите, если счёт верный, или отклоните.
                   </p>
                   <div className="flex gap-3">
@@ -342,7 +355,7 @@ export default function Home({ telegramId }) {
                       type="button"
                       onClick={handleReject}
                       disabled={isBusy}
-                      className="flex-1 py-3 rounded-xl border border-[var(--tg-theme-hint-color)]/40 disabled:opacity-50"
+                      className="flex-1 py-3 rounded-xl border border-[var(--app-hint)]/40 disabled:opacity-50"
                     >
                       {isBusy ? 'Отправка...' : 'Отклонить'}
                     </button>
@@ -352,8 +365,8 @@ export default function Home({ telegramId }) {
                       disabled={isBusy}
                       className="flex-1 py-3 rounded-xl font-medium text-white disabled:opacity-50"
                       style={{
-                        background: 'var(--tg-theme-button-color)',
-                        color: 'var(--tg-theme-button-text-color)',
+                        background: 'var(--app-accent)',
+                        color: 'var(--app-accent-text)',
                       }}
                     >
                       {isBusy ? 'Отправка...' : 'Подтвердить'}
@@ -366,12 +379,18 @@ export default function Home({ telegramId }) {
         </div>
       )}
 
+      <GameRequests
+        playerId={myId}
+        divisionId={division.id}
+        hasDivision={!!division}
+      />
+
       <div className="flex flex-col gap-2">
         <button
           type="button"
           onClick={() => setShowMatchInput(true)}
           className="w-full py-3 rounded-xl font-medium text-white"
-          style={{ background: 'var(--tg-theme-button-color)', color: 'var(--tg-theme-button-text-color)' }}
+          style={{ background: 'var(--app-accent)', color: 'var(--app-accent-text)' }}
         >
           ➕ Внести результат матча
         </button>

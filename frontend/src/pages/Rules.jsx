@@ -5,7 +5,7 @@ export default function Rules() {
 
       <section>
         <h2 className="text-lg font-semibold mb-2">Лига настольного тенниса</h2>
-        <p className="text-[var(--tg-theme-hint-color)]">
+        <p className="text-[var(--app-hint)]">
           Участие в Лиге по настольному теннису дает Вам возможность получить игровой опыт и найти новых партнеров по игре различного уровня. Лига объединяет игроков в теннис не только как спорт, но и как сообщество успешных и интересных людей. Лига – это неформальное соревнование в течение длительного времени. Лига включает в себя несколько дивизионов. После каждого тура соревнований происходит ротация игроков в каждом дивизионе. Таким образом, у каждого игрока будет возможность сыграть как с игроками своего уровня, так и с более сильными соперниками.
         </p>
       </section>
@@ -61,8 +61,8 @@ export default function Rules() {
       <section>
         <h3 className="font-semibold mb-2">Коэффициент дивизиона (КД)</h3>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm border border-[var(--tg-theme-hint-color)]/30 rounded-lg overflow-hidden">
-            <thead style={{ background: 'var(--tg-theme-secondary-bg-color)' }}>
+          <table className="w-full text-sm border border-[var(--app-hint)]/30 rounded-lg overflow-hidden">
+            <thead style={{ background: 'var(--app-secondary-bg)' }}>
               <tr>
                 <th className="p-2 text-left">Дивизион</th>
                 <th className="p-2 text-right">КД</th>
@@ -81,8 +81,8 @@ export default function Rules() {
       <section>
         <h3 className="font-semibold mb-2">Коэффициент счёта (КС)</h3>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm border border-[var(--tg-theme-hint-color)]/30 rounded-lg overflow-hidden">
-            <thead style={{ background: 'var(--tg-theme-secondary-bg-color)' }}>
+          <table className="w-full text-sm border border-[var(--app-hint)]/30 rounded-lg overflow-hidden">
+            <thead style={{ background: 'var(--app-secondary-bg)' }}>
               <tr>
                 <th className="p-2 text-left">Счёт матча</th>
                 <th className="p-2 text-right">КС</th>

@@ -73,8 +73,8 @@ export default function MatchInput({
         <Dialog.Panel
           className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl p-4 shadow-xl"
           style={{
-            background: 'var(--tg-theme-bg-color)',
-            color: 'var(--tg-theme-text-color)',
+            background: 'var(--app-bg)',
+            color: 'var(--app-text)',
           }}
         >
           <Dialog.Title className="text-lg font-bold mb-3">
@@ -82,10 +82,10 @@ export default function MatchInput({
           </Dialog.Title>
 
           {opponentList.length === 0 ? (
-            <p className="text-[var(--tg-theme-hint-color)] mb-4">Все матчи с соперниками уже внесены.</p>
+            <p className="text-[var(--app-hint)] mb-4">Все матчи с соперниками уже внесены.</p>
           ) : (
           <>
-          <p className="text-sm font-medium mb-2 text-[var(--tg-theme-hint-color)]">
+          <p className="text-sm font-medium mb-2 text-[var(--app-hint)]">
             Выберите соперника
           </p>
           <div className="grid grid-cols-2 gap-2 mb-4">
@@ -98,9 +98,9 @@ export default function MatchInput({
                   onClick={() => setSelectedOpponent(p)}
                   className="py-2.5 px-3 rounded-lg text-left text-sm font-medium border truncate"
                   style={{
-                    borderColor: isSelected ? 'var(--tg-theme-button-color)' : 'var(--tg-theme-hint-color)',
-                    background: isSelected ? 'var(--tg-theme-button-color)' : 'var(--tg-theme-secondary-bg-color)',
-                    color: isSelected ? 'var(--tg-theme-button-text-color)' : undefined,
+                    borderColor: isSelected ? 'var(--app-accent)' : 'var(--app-hint)',
+                    background: isSelected ? 'var(--app-accent)' : 'var(--app-secondary-bg)',
+                    color: isSelected ? 'var(--app-accent-text)' : undefined,
                   }}
                   title={p.name || '—'}
                 >
@@ -115,7 +115,7 @@ export default function MatchInput({
 
           {selectedOpponent && !alreadyPlayedWithSelected && (
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-2 text-[var(--tg-theme-hint-color)]">
+              <label className="block text-sm font-medium mb-2 text-[var(--app-hint)]">
                 Счёт (вы — соперник)
               </label>
               <div className="grid grid-cols-2 gap-2">
@@ -129,12 +129,12 @@ export default function MatchInput({
                         onClick={() => setScoreChoice([a, b])}
                         className={`py-2 px-3 rounded-lg text-sm font-medium border ${
                           scoreChoice?.[0] === a && scoreChoice?.[1] === b
-                            ? 'border-[var(--tg-theme-button-color)] text-[var(--tg-theme-button-color)]'
-                            : 'border-[var(--tg-theme-hint-color)]/40'
+                            ? 'border-[var(--app-accent)] text-[var(--app-accent)]'
+                            : 'border-[var(--app-hint)]/40'
                         }`}
                         style={{
                           background: scoreChoice?.[0] === a && scoreChoice?.[1] === b
-                            ? 'color: var(--tg-theme-button-color); border-color: var(--tg-theme-button-color);'
+                            ? 'color: var(--app-accent); border-color: var(--app-accent);'
                             : undefined,
                         }}
                       >
@@ -153,8 +153,8 @@ export default function MatchInput({
                         onClick={() => setScoreChoice([a, b])}
                         className={`py-2 px-3 rounded-lg text-sm font-medium border ${
                           scoreChoice?.[0] === a && scoreChoice?.[1] === b
-                            ? 'border-[var(--tg-theme-button-color)]'
-                            : 'border-[var(--tg-theme-hint-color)]/40'
+                            ? 'border-[var(--app-accent)]'
+                            : 'border-[var(--app-hint)]/40'
                         }`}
                       >
                         {a}:{b}
@@ -169,7 +169,7 @@ export default function MatchInput({
           {preview && !alreadyPlayedWithSelected && (
             <div
               className="mb-4 p-3 rounded-lg text-sm"
-              style={{ background: 'var(--tg-theme-secondary-bg-color)' }}
+              style={{ background: 'var(--app-secondary-bg)' }}
             >
               <p className="font-medium">Превью</p>
               <p>Счёт: {preview.text}</p>
@@ -187,7 +187,7 @@ export default function MatchInput({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-3 rounded-xl border border-[var(--tg-theme-hint-color)]/40"
+              className="flex-1 py-3 rounded-xl border border-[var(--app-hint)]/40"
             >
               Отмена
             </button>
@@ -197,8 +197,8 @@ export default function MatchInput({
               disabled={!preview || saving || alreadyPlayedWithSelected}
               className="flex-1 py-3 rounded-xl font-medium text-white disabled:opacity-50"
               style={{
-                background: 'var(--tg-theme-button-color)',
-                color: 'var(--tg-theme-button-text-color)',
+                background: 'var(--app-accent)',
+                color: 'var(--app-accent-text)',
               }}
             >
               {saving ? 'Сохранение...' : 'Подтвердить'}

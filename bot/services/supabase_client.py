@@ -357,3 +357,26 @@ def get_rating_top(limit: int = 20) -> list[dict]:
         return r.data or []
     except Exception:
         return []
+
+
+def create_link_code(player_id: str) -> Optional[str]:
+    """Generate a 6-digit link code for cross-platform account linking."""
+    import random
+    import string
+    client = _get_client()
+    # Delete old unused codes for this player
+    try:
+        client.table("link_codes").delete().eq("player_id", player_id).eq("used", False).execute()
+    except Exception:
+        pass
+    code = ''.join(random.choices(string.digits, k=6))
+    try:
+        r = client.table("link_codes").insert({
+            "player_id": player_id,
+            "code": code,
+        }).execute()
+        if r.data:
+            return code
+    except Exception as e:
+        logger.exception("create_link_code failed: %s", e)
+    return None

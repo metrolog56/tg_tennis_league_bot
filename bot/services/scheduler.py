@@ -324,6 +324,116 @@ async def _send_pending_confirm_notifications(bot: Optional["Bot"] = None) -> No
         logger.exception("_send_pending_confirm_notifications failed: %s", e)
 
 
+async def _send_game_request_notifications(bot: Optional["Bot"] = None) -> None:
+    """Notify players about new game requests and accepted requests; expire old ones."""
+    if not bot:
+        return
+    webapp_url = (os.getenv("WEBAPP_URL") or "").strip().rstrip("/")
+    try:
+        client = _get_client()
+
+        # Expire old requests
+        now_iso = datetime.now(timezone.utc).isoformat()
+        client.table("game_requests").update({"status": "expired"}).eq("status", "active").lt("expires_at", now_iso).execute()
+
+        # Notify about new active requests (notification_sent_at IS NULL)
+        active_r = (
+            client.table("game_requests")
+            .select("id, player_id, type, division_id")
+            .eq("status", "active")
+            .is_("notification_sent_at", "null")
+            .execute()
+        )
+        for req in active_r.data or []:
+            author_r = client.table("players").select("name").eq("id", req["player_id"]).execute()
+            author_name = (author_r.data or [{}])[0].get("name", "Игрок") if author_r.data else "Игрок"
+
+            if req["type"] == "division" and req.get("division_id"):
+                dp_r = (
+                    client.table("division_players")
+                    .select("player_id")
+                    .eq("division_id", req["division_id"])
+                    .execute()
+                )
+                target_player_ids = [
+                    dp["player_id"] for dp in (dp_r.data or [])
+                    if dp["player_id"] != req["player_id"]
+                ]
+            else:
+                all_r = client.table("players").select("id").eq("is_active", True).execute()
+                target_player_ids = [
+                    p["id"] for p in (all_r.data or [])
+                    if p["id"] != req["player_id"]
+                ]
+
+            game_type_label = "игру лиги" if req["type"] == "division" else "дружескую игру"
+            text = f"🏓 {author_name} ищет {game_type_label}!"
+            if webapp_url:
+                text += f"\n\nОткройте приложение, чтобы откликнуться."
+
+            for pid in target_player_ids:
+                tg_r = client.table("players").select("telegram_id").eq("id", pid).execute()
+                if not tg_r.data or tg_r.data[0].get("telegram_id") is None:
+                    continue
+                tg_id = int(tg_r.data[0]["telegram_id"])
+                try:
+                    if webapp_url:
+                        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+                        kb = InlineKeyboardMarkup(inline_keyboard=[
+                            [InlineKeyboardButton(text="Открыть приложение", url=webapp_url)],
+                        ])
+                        await bot.send_message(tg_id, text, reply_markup=kb)
+                    else:
+                        await bot.send_message(tg_id, text)
+                except Exception as e:
+                    logger.warning("Failed to send game_request notification to %s: %s", tg_id, e)
+
+            client.table("game_requests").update(
+                {"notification_sent_at": now_iso}
+            ).eq("id", req["id"]).execute()
+
+        # Notify about accepted requests
+        accepted_r = (
+            client.table("game_requests")
+            .select("id, player_id, accepted_by")
+            .eq("status", "accepted")
+            .eq("accepted_notification_sent", False)
+            .execute()
+        )
+        for req in accepted_r.data or []:
+            author_r = client.table("players").select("name, telegram_id, telegram_username").eq("id", req["player_id"]).execute()
+            acceptor_r = client.table("players").select("name, telegram_id, telegram_username").eq("id", req["accepted_by"]).execute()
+            author = (author_r.data or [{}])[0] if author_r.data else {}
+            acceptor = (acceptor_r.data or [{}])[0] if acceptor_r.data else {}
+
+            if author.get("telegram_id"):
+                contact = f"@{acceptor.get('telegram_username')}" if acceptor.get("telegram_username") else acceptor.get("name", "Игрок")
+                try:
+                    await bot.send_message(
+                        int(author["telegram_id"]),
+                        f"🏓 {acceptor.get('name', 'Игрок')} готов сыграть с вами! Свяжитесь: {contact}"
+                    )
+                except Exception as e:
+                    logger.warning("Failed to notify author %s: %s", author.get("telegram_id"), e)
+
+            if acceptor.get("telegram_id"):
+                contact = f"@{author.get('telegram_username')}" if author.get("telegram_username") else author.get("name", "Игрок")
+                try:
+                    await bot.send_message(
+                        int(acceptor["telegram_id"]),
+                        f"🏓 Вы откликнулись на игру с {author.get('name', 'Игрок')}! Свяжитесь: {contact}"
+                    )
+                except Exception as e:
+                    logger.warning("Failed to notify acceptor %s: %s", acceptor.get("telegram_id"), e)
+
+            client.table("game_requests").update(
+                {"accepted_notification_sent": True}
+            ).eq("id", req["id"]).execute()
+
+    except Exception as e:
+        logger.exception("_send_game_request_notifications failed: %s", e)
+
+
 async def _daily_check(bot: Optional["Bot"] = None) -> None:
     if not _is_last_day_of_month():
         return
@@ -356,5 +466,11 @@ def start_scheduler(bot: Optional["Bot"] = None) -> None:
         args=[bot],
         id="pending_confirm_notify",
     )
+    _scheduler.add_job(
+        _send_game_request_notifications,
+        CronTrigger(minute="*/2"),
+        args=[bot],
+        id="game_request_notify",
+    )
     _scheduler.start()
-    logger.info("Scheduler started (daily 23:55, pending_confirm every 2 min)")
+    logger.info("Scheduler started (daily 23:55, pending_confirm every 2 min, game_requests every 2 min)")

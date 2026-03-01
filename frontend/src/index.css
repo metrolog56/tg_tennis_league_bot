@@ -10,19 +10,27 @@
   --tg-theme-button-color: #2481cc;
   --tg-theme-button-text-color: #ffffff;
   --tg-theme-secondary-bg-color: #f4f4f5;
+
+  --app-bg: var(--tg-theme-bg-color);
+  --app-text: var(--tg-theme-text-color);
+  --app-hint: var(--tg-theme-hint-color);
+  --app-link: var(--tg-theme-link-color);
+  --app-accent: var(--tg-theme-button-color);
+  --app-accent-text: var(--tg-theme-button-text-color);
+  --app-secondary-bg: var(--tg-theme-secondary-bg-color);
 }
 
 html {
   min-width: 320px;
-  background: var(--tg-theme-bg-color);
+  background: var(--app-bg);
 }
 
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
-  background: var(--tg-theme-bg-color);
-  color: var(--tg-theme-text-color);
+  background: var(--app-bg);
+  color: var(--app-text);
   min-width: 320px;
 }
 
@@ -31,7 +39,7 @@ body {
   min-height: 100dvh;
   min-width: 320px;
   padding-bottom: env(safe-area-inset-bottom, 0);
-  background: var(--tg-theme-bg-color);
+  background: var(--app-bg);
 }
 
 .safe-area-pb {

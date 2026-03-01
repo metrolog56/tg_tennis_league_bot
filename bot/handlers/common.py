@@ -5,7 +5,7 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
 
-from services.supabase_client import get_player_by_telegram_id, create_player, get_player_division
+from services.supabase_client import get_player_by_telegram_id, create_player, get_player_division, create_link_code
 from keyboards.inline import get_main_menu_keyboard
 
 router = Router()
@@ -60,6 +60,7 @@ async def cmd_help(message: Message) -> None:
         "/start — главное меню\n"
         "/rating — рейтинг (топ-20)\n"
         "/result — внести результат матча\n"
+        "/link — код для привязки VK-аккаунта\n"
         "/help — эта справка"
     )
     await message.answer(text)
@@ -114,6 +115,25 @@ async def menu_rules(callback: CallbackQuery) -> None:
         "Рейтинг считается по формулам ФНТР (КД по дивизиону, КС по счёту)."
     )
     await callback.message.answer(text)
+
+
+@router.message(Command("link"))
+async def cmd_link(message: Message) -> None:
+    """Generate a 6-digit code for linking VK account to existing Telegram profile."""
+    telegram_id = message.from_user.id
+    player = get_player_by_telegram_id(telegram_id)
+    if not player:
+        await message.answer("Сначала зарегистрируйтесь: /start")
+        return
+    code = create_link_code(player["id"])
+    if not code:
+        await message.answer("Ошибка генерации кода. Попробуйте ещё раз.")
+        return
+    await message.answer(
+        f"🔗 <b>Код привязки:</b> <code>{code}</code>\n\n"
+        "Введите этот код в VK-приложении, чтобы привязать аккаунт.\n"
+        "Код действует 10 минут."
+    )
 
 
 @router.callback_query(F.data == "menu:result")
