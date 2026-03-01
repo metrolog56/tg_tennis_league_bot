@@ -94,8 +94,23 @@ function App() {
     if (sessionSent.current) return
     sessionSent.current = true
     const platform = telegramId ? 'telegram' : 'web'
-    const clientData = collectClientData()
-    saveClientSession(clientData, null, platform).catch(() => {})
+    let clientData
+    try {
+      clientData = collectClientData()
+    } catch (e) {
+      console.warn('[analytics] collectClientData failed', e)
+      return
+    }
+    console.warn('[analytics] client_sessions sending', platform)
+    saveClientSession(clientData, null, platform).then((err) => {
+      if (err) {
+        console.warn('[analytics] client_sessions insert failed', err?.message ?? err)
+      } else {
+        console.warn('[analytics] client_sessions ok')
+      }
+    }).catch((e) => {
+      console.warn('[analytics] client_sessions error', e)
+    })
   }, [telegramId])
 
   return (

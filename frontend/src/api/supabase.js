@@ -11,14 +11,22 @@ if (!url || !key) {
 export const supabase = createClient(url || '', key || '')
 
 export async function saveClientSession(clientData, playerId = null, platform = null) {
+  if (!url || !key) {
+    const e = new Error('Supabase URL or key not set (check VITE_SUPABASE_* in .env)')
+    console.warn('[analytics]', e.message)
+    return e
+  }
   const row = {
     ...clientData,
     player_id: playerId || null,
     platform: platform || null,
   }
-  const { error } = await supabase.from('client_sessions').insert(row)
-  if (error) console.warn('Client session save failed:', error)
-  return error
+  const { data, error } = await supabase.from('client_sessions').insert(row).select('id')
+  if (error) {
+    console.warn('[analytics] Client session save failed:', error.message, error.code, error.details)
+    return error
+  }
+  return null
 }
 
 export async function getPlayerByTelegramId(telegramId) {
