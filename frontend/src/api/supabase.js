@@ -10,6 +10,17 @@ if (!url || !key) {
 
 export const supabase = createClient(url || '', key || '')
 
+export async function saveClientSession(clientData, playerId = null, platform = null) {
+  const row = {
+    ...clientData,
+    player_id: playerId || null,
+    platform: platform || null,
+  }
+  const { error } = await supabase.from('client_sessions').insert(row)
+  if (error) console.warn('Client session save failed:', error)
+  return error
+}
+
 export async function getPlayerByTelegramId(telegramId) {
   const { data, error } = await supabase
     .from('players')

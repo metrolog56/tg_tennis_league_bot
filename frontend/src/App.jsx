@@ -1,11 +1,13 @@
-import { useEffect } from 'react'
-import { HashRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom'
+import { useEffect, useRef } from 'react'
+import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom'
 import Home from './pages/Home'
 import Rating from './pages/Rating'
 import Division from './pages/Division'
 import Rules from './pages/Rules'
 import { useTelegram } from './hooks/useTelegram'
-import { getCurrentSeason } from './api/supabase'
+import { getCurrentSeason, saveClientSession } from './api/supabase'
+import { collectClientData } from './analytics/clientData'
+import { initYandexMetrika, hitYandexMetrika } from './analytics/yandex'
 
 const NAV_HEIGHT = 64
 
@@ -66,18 +68,42 @@ function Layout({ children }) {
   )
 }
 
+function MetrikaTracker() {
+  const location = useLocation()
+  const inited = useRef(false)
+  useEffect(() => {
+    if (!inited.current) {
+      initYandexMetrika()
+      inited.current = true
+    }
+    hitYandexMetrika(window.location.href || '#/')
+  }, [location.pathname, location.search, location.hash])
+  return null
+}
+
 function App() {
   const { user } = useTelegram()
   const telegramId = user?.id ?? null
+  const sessionSent = useRef(false)
 
   useEffect(() => {
     getCurrentSeason().catch(() => {})
   }, [])
 
+  useEffect(() => {
+    if (sessionSent.current) return
+    sessionSent.current = true
+    const platform = telegramId ? 'telegram' : 'web'
+    const clientData = collectClientData()
+    saveClientSession(clientData, null, platform).catch(() => {})
+  }, [telegramId])
+
   return (
     <HashRouter>
-      <Layout>
-        <Routes>
+      <>
+        <MetrikaTracker />
+        <Layout>
+          <Routes>
           <Route index element={<Home telegramId={telegramId} />} />
           <Route path="/rating" element={<Rating telegramId={telegramId} />} />
           <Route path="/division" element={<Division telegramId={telegramId} />} />
@@ -85,7 +111,8 @@ function App() {
           <Route path="/rules" element={<Rules />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </Layout>
+        </Layout>
+      </>
     </HashRouter>
   )
 }
