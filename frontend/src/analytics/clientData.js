@@ -1,4 +1,5 @@
-import { UAParser } from 'ua-parser-js'
+import * as UAParserNS from 'ua-parser-js'
+const UAParser = UAParserNS.UAParser
 
 export function collectClientData() {
   if (typeof navigator === 'undefined') {
