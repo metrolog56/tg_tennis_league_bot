@@ -54,7 +54,8 @@ async def cmd_addplayer(message: Message, command: CommandObject) -> None:
     link = f"https://t.me/{bot_username}"
     await message.answer(
         f"Игрок <b>{name}</b> может зарегистрироваться, перейдя по ссылке и нажав /start:\n\n{link}\n\n"
-        "После регистрации назначьте его в дивизион: /assignplayer <номер_дивизиона> @username"
+        "После регистрации назначьте его в дивизион: /assignplayer <номер_дивизиона> @username\n"
+        "Если у игрока не указан @username в Telegram — используйте: /assignplayer <номер_дивизиона> <telegram_id>"
     )
 
 
@@ -120,7 +121,7 @@ async def cmd_adddivision(message: Message, command: CommandObject) -> None:
 
 @router.message(Command("assignplayer"), F.text)
 async def cmd_assignplayer(message: Message, command: CommandObject) -> None:
-    """Назначить игрока в дивизион. Использование: /assignplayer <номер_дивизиона> @username"""
+    """Назначить игрока в дивизион: по @username или по telegram_id."""
     if not await _admin_only(message):
         return
     args = (command.args or "").strip()
@@ -128,7 +129,8 @@ async def cmd_assignplayer(message: Message, command: CommandObject) -> None:
     if len(parts) < 2:
         await message.answer(
             "Использование: /assignplayer <номер_дивизиона> @username\n"
-            "Пример: /assignplayer 1 @ivanov"
+            "или: /assignplayer <номер_дивизиона> <telegram_id>\n"
+            "Примеры: /assignplayer 1 @ivanov или /assignplayer 1 494813701"
         )
         return
     try:
@@ -136,7 +138,8 @@ async def cmd_assignplayer(message: Message, command: CommandObject) -> None:
     except ValueError:
         await message.answer("Номер дивизиона должен быть числом.")
         return
-    username = parts[1].lstrip("@")
+    second_arg = parts[1].lstrip("@")
+    by_telegram_id = second_arg.isdigit()
     season = get_active_season()
     if not season:
         await message.answer("Нет активного сезона.")
@@ -153,23 +156,38 @@ async def cmd_assignplayer(message: Message, command: CommandObject) -> None:
         await message.answer(f"Дивизион №{div_num} не найден в текущем сезоне.")
         return
     division_id = div_r.data[0]["id"]
-    pl_r = (
-        client.table("players")
-        .select("id, name")
-        .eq("telegram_username", username)
-        .execute()
-    )
+    if by_telegram_id:
+        pl_r = (
+            client.table("players")
+            .select("id, name, telegram_id")
+            .eq("telegram_id", int(second_arg))
+            .execute()
+        )
+    else:
+        pl_r = (
+            client.table("players")
+            .select("id, name, telegram_username")
+            .eq("telegram_username", second_arg)
+            .execute()
+        )
     if not pl_r.data or len(pl_r.data) == 0:
-        await message.answer(f"Игрок с username @{username} не найден. Он должен сначала нажать /start.")
+        if by_telegram_id:
+            await message.answer(f"Игрок с telegram_id {second_arg} не найден. Он должен сначала нажать /start.")
+        else:
+            await message.answer(f"Игрок с username @{second_arg} не найден. Он должен сначала нажать /start.")
         return
     player_id = pl_r.data[0]["id"]
     player_name = pl_r.data[0].get("name", "—")
+    if by_telegram_id:
+        assign_label = f"ID: {second_arg}"
+    else:
+        assign_label = f"@{second_arg}"
     try:
         client.table("division_players").insert({
             "division_id": division_id,
             "player_id": player_id,
         }).execute()
-        await message.answer(f"Игрок <b>{player_name}</b> (@{username}) назначен в дивизион №{div_num}.")
+        await message.answer(f"Игрок <b>{player_name}</b> ({assign_label}) назначен в дивизион №{div_num}.")
     except Exception as e:
         if "duplicate" in str(e).lower() or "unique" in str(e).lower():
             await message.answer(f"Игрок уже в этом дивизионе.")

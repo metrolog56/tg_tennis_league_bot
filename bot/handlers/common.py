@@ -38,6 +38,8 @@ async def cmd_start(message: Message) -> None:
                 await message.answer("Ошибка регистрации. Обратитесь к администратору.")
                 return
             greet = "Добро пожаловать в лигу! Вы зарегистрированы."
+            if username is None:
+                greet += f"\n\nЕсли у вас не указан @username в Telegram, админ может назначить вас в дивизион по ID (ваш ID: <code>{telegram_id}</code>)."
         else:
             greet = "С возвращением!"
     except Exception as e:
