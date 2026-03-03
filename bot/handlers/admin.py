@@ -15,6 +15,9 @@ from services.supabase_client import (
 
 router = Router()
 
+# Невидимые/мешающие символы, которые могут попасть в аргументы из Telegram
+_INVISIBLE_CHARS = "\u200b\u200c\u200d\ufeff\u00a0"
+
 MONTH_NAMES = [
     "", "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
     "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь",
@@ -138,13 +141,21 @@ async def cmd_assignplayer(message: Message, command: CommandObject) -> None:
     except ValueError:
         await message.answer("Номер дивизиона должен быть числом.")
         return
-    second_arg = parts[1].lstrip("@").replace("\u00a0", "").strip()
+    second_arg = parts[1].lstrip("@").strip()
+    for c in _INVISIBLE_CHARS:
+        second_arg = second_arg.replace(c, "")
+    second_arg = second_arg.strip()
     try:
         telegram_id_val = int(second_arg)
         by_telegram_id = True
     except ValueError:
-        by_telegram_id = False
-        telegram_id_val = None
+        digits_only = "".join(ch for ch in second_arg if ch.isdigit())
+        if len(digits_only) >= 5:
+            telegram_id_val = int(digits_only)
+            by_telegram_id = True
+        else:
+            by_telegram_id = False
+            telegram_id_val = None
     season = get_active_season()
     if not season:
         await message.answer("Нет активного сезона.")
