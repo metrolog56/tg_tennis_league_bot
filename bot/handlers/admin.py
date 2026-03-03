@@ -138,8 +138,13 @@ async def cmd_assignplayer(message: Message, command: CommandObject) -> None:
     except ValueError:
         await message.answer("Номер дивизиона должен быть числом.")
         return
-    second_arg = parts[1].lstrip("@")
-    by_telegram_id = second_arg.isdigit()
+    second_arg = parts[1].lstrip("@").replace("\u00a0", "").strip()
+    try:
+        telegram_id_val = int(second_arg)
+        by_telegram_id = True
+    except ValueError:
+        by_telegram_id = False
+        telegram_id_val = None
     season = get_active_season()
     if not season:
         await message.answer("Нет активного сезона.")
@@ -160,7 +165,7 @@ async def cmd_assignplayer(message: Message, command: CommandObject) -> None:
         pl_r = (
             client.table("players")
             .select("id, name, telegram_id")
-            .eq("telegram_id", int(second_arg))
+            .eq("telegram_id", telegram_id_val)
             .execute()
         )
     else:
@@ -172,14 +177,14 @@ async def cmd_assignplayer(message: Message, command: CommandObject) -> None:
         )
     if not pl_r.data or len(pl_r.data) == 0:
         if by_telegram_id:
-            await message.answer(f"Игрок с telegram_id {second_arg} не найден. Он должен сначала нажать /start.")
+            await message.answer(f"Игрок с telegram_id {telegram_id_val} не найден. Он должен сначала нажать /start.")
         else:
             await message.answer(f"Игрок с username @{second_arg} не найден. Он должен сначала нажать /start.")
         return
     player_id = pl_r.data[0]["id"]
     player_name = pl_r.data[0].get("name", "—")
     if by_telegram_id:
-        assign_label = f"ID: {second_arg}"
+        assign_label = f"ID: {telegram_id_val}"
     else:
         assign_label = f"@{second_arg}"
     try:
