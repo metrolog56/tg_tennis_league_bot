@@ -39,6 +39,21 @@ export async function getPlayerByTelegramId(telegramId) {
   return data
 }
 
+export async function updatePlayerName(playerId, newName) {
+  const name = (newName || '').trim()
+  if (!name) {
+    throw new Error('Имя не может быть пустым')
+  }
+  const { data, error } = await supabase
+    .from('players')
+    .update({ name })
+    .eq('id', playerId)
+    .select('id, name, rating, telegram_id')
+    .maybeSingle()
+  if (error) throw error
+  return data
+}
+
 let seasonCache = null
 
 export async function getCurrentSeason() {

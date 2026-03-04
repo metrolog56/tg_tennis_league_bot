@@ -10,6 +10,7 @@ import {
   getPendingConfirmationForPlayer,
   confirmMatchResult,
   rejectMatchResult,
+  updatePlayerName,
 } from '../api/supabase'
 import MatchInput from '../components/MatchInput'
 
@@ -22,6 +23,11 @@ export default function Home({ telegramId }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showMatchInput, setShowMatchInput] = useState(false)
+  const [showNameHint, setShowNameHint] = useState(false)
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const [profileName, setProfileName] = useState('')
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [profileError, setProfileError] = useState('')
   const location = useLocation()
   const navigate = useNavigate()
   const [flashMessage, setFlashMessage] = useState('')
@@ -74,6 +80,18 @@ export default function Home({ telegramId }) {
     load()
     return () => { cancelled = true }
   }, [telegramId])
+
+  useEffect(() => {
+    if (!player?.id) return
+    try {
+      const flag = window.localStorage.getItem('nameHintShown')
+      if (!flag) {
+        setShowNameHint(true)
+      }
+    } catch {
+      // ignore localStorage issues
+    }
+  }, [player?.id])
 
   useEffect(() => {
     const msg = location.state?.message
@@ -198,6 +216,75 @@ export default function Home({ telegramId }) {
     <div className="p-4 min-w-[320px] max-w-lg mx-auto">
       <h1 className="text-xl font-bold mb-2">🏠 Главная</h1>
 
+      {showNameHint && (
+        <div className="mb-3 p-3 rounded-xl border border-[var(--tg-theme-hint-color)]/40 bg-[var(--tg-theme-secondary-bg-color)]/60">
+          <p className="text-sm text-[var(--tg-theme-text-color)] mb-2">
+            Твоё отображаемое имя сейчас:{' '}
+            <span className="font-semibold">{player.name || '—'}</span>.
+            {' '}Ты можешь изменить его в профиле, чтобы коллеги могли тебя узнать.
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setProfileName(player.name || '')
+                setProfileError('')
+                setIsProfileOpen(true)
+                try {
+                  window.localStorage.setItem('nameHintShown', '1')
+                } catch {
+                  // ignore
+                }
+                setShowNameHint(false)
+              }}
+              className="flex-1 py-2 rounded-xl text-sm font-medium text-white"
+              style={{ background: 'var(--tg-theme-button-color)', color: 'var(--tg-theme-button-text-color)' }}
+            >
+              Изменить имя
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                try {
+                  window.localStorage.setItem('nameHintShown', '1')
+                } catch {
+                  // ignore
+                }
+                setShowNameHint(false)
+              }}
+              className="flex-1 py-2 rounded-xl text-sm border border-[var(--tg-theme-hint-color)]/50"
+            >
+              Позже
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="mb-4 p-3 rounded-xl border border-[var(--tg-theme-hint-color)]/40">
+        <h2 className="text-base font-bold mb-1">Профиль</h2>
+        <p className="text-sm text-[var(--tg-theme-text-color)] mb-1">
+          Имя в лиге:{' '}
+          <span className="font-medium">{player.name || '—'}</span>
+        </p>
+        {player.telegram_id && (
+          <p className="text-xs text-[var(--tg-theme-hint-color)] mb-2">
+            Telegram ID: {player.telegram_id}
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={() => {
+            setProfileName(player.name || '')
+            setProfileError('')
+            setIsProfileOpen(true)
+          }}
+          className="mt-1 inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-medium text-white"
+          style={{ background: 'var(--tg-theme-button-color)', color: 'var(--tg-theme-button-text-color)' }}
+        >
+          Изменить имя
+        </button>
+      </div>
+
       {flashMessage && (
         <Dialog open onClose={() => setFlashMessage('')} className="relative z-50">
           <div className="fixed inset-0 bg-black/50" aria-hidden="true" />
@@ -216,6 +303,78 @@ export default function Home({ telegramId }) {
               >
                 ОК
               </button>
+            </Dialog.Panel>
+          </div>
+        </Dialog>
+      )}
+
+      {isProfileOpen && (
+        <Dialog open={isProfileOpen} onClose={() => !profileSaving && setIsProfileOpen(false)} className="relative z-50">
+          <div className="fixed inset-0 bg-black/50" aria-hidden="true" />
+          <div className="fixed inset-0 flex items-center justify-center p-4">
+            <Dialog.Panel
+              className="w-full max-w-sm rounded-2xl p-6 shadow-xl"
+              style={{ background: 'var(--tg-theme-bg-color)', color: 'var(--tg-theme-text-color)' }}
+            >
+              <Dialog.Title className="text-lg font-bold mb-3">Имя в лиге</Dialog.Title>
+              <p className="text-sm text-[var(--tg-theme-hint-color)] mb-3">
+                Это имя видят другие игроки в приложении, независимо от имени в Telegram.
+              </p>
+              <input
+                type="text"
+                value={profileName}
+                onChange={(e) => setProfileName(e.target.value)}
+                maxLength={80}
+                className="w-full mb-2 px-3 py-2 rounded-xl border border-[var(--tg-theme-hint-color)]/40 bg-[var(--tg-theme-bg-color)]"
+                placeholder="Имя и Фамилия"
+              />
+              {profileError && (
+                <p className="text-xs text-red-500 mb-2">{profileError}</p>
+              )}
+              <div className="mt-3 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsProfileOpen(false)
+                  }}
+                  disabled={profileSaving}
+                  className="flex-1 py-2 rounded-xl border border-[var(--tg-theme-hint-color)]/40 disabled:opacity-50"
+                >
+                  Отмена
+                </button>
+                <button
+                  type="button"
+                  disabled={profileSaving}
+                  onClick={async () => {
+                    const trimmed = (profileName || '').trim()
+                    if (!trimmed) {
+                      setProfileError('Имя не может быть пустым')
+                      return
+                    }
+                    setProfileSaving(true)
+                    setProfileError('')
+                    try {
+                      const updated = await updatePlayerName(player.id, trimmed)
+                      setPlayer((prev) => ({ ...(prev || {}), ...(updated || {}), name: trimmed }))
+                      try {
+                        window.localStorage.setItem('nameHintShown', '1')
+                      } catch {
+                        // ignore
+                      }
+                      setShowNameHint(false)
+                      setIsProfileOpen(false)
+                    } catch (e) {
+                      setProfileError(e?.message || 'Не удалось сохранить имя')
+                    } finally {
+                      setProfileSaving(false)
+                    }
+                  }}
+                  className="flex-1 py-2 rounded-xl font-medium text-white disabled:opacity-50"
+                  style={{ background: 'var(--tg-theme-button-color)', color: 'var(--tg-theme-button-text-color)' }}
+                >
+                  {profileSaving ? 'Сохранение...' : 'Сохранить'}
+                </button>
+              </div>
             </Dialog.Panel>
           </div>
         </Dialog>
