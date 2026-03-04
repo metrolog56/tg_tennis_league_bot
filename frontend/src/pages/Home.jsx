@@ -240,7 +240,7 @@ export default function Home({ telegramId }) {
                 }
                 setShowNameHint(false)
               }}
-              className="flex-1 py-2 rounded-xl text-sm font-medium text-white"
+              className="flex-1 py-3 rounded-xl font-medium text-white"
               style={{ background: 'var(--tg-theme-button-color)', color: 'var(--tg-theme-button-text-color)' }}
             >
               Изменить имя
@@ -255,7 +255,7 @@ export default function Home({ telegramId }) {
                 }
                 setShowNameHint(false)
               }}
-              className="flex-1 py-2 rounded-xl text-sm border border-[var(--tg-theme-hint-color)]/50"
+              className="flex-1 py-3 rounded-xl font-medium border border-[var(--tg-theme-hint-color)]/50"
             >
               Позже
             </button>
@@ -263,9 +263,8 @@ export default function Home({ telegramId }) {
         </div>
       )}
 
-      <div className="mb-4 p-3 rounded-xl border border-[var(--tg-theme-hint-color)]/40">
-        <h2 className="text-base font-bold mb-1">Профиль</h2>
-        <p className="text-sm text-[var(--tg-theme-text-color)] mb-2 font-medium">
+      <div className="mb-4 p-3 rounded-xl border border-[var(--tg-theme-hint-color)]/40 flex items-center justify-between gap-3">
+        <p className="text-sm text-[var(--tg-theme-text-color)] font-medium truncate min-w-0">
           {player.name || '—'}
         </p>
         <button
@@ -277,7 +276,7 @@ export default function Home({ telegramId }) {
             setProfileError('')
             setIsProfileOpen(true)
           }}
-          className="mt-1 inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-medium text-white"
+          className="flex-shrink-0 py-3 px-4 rounded-xl font-medium text-white"
           style={{ background: 'var(--tg-theme-button-color)', color: 'var(--tg-theme-button-text-color)' }}
         >
           Изменить имя
@@ -347,7 +346,7 @@ export default function Home({ telegramId }) {
                     setIsProfileOpen(false)
                   }}
                   disabled={profileSaving}
-                  className="flex-1 py-2 rounded-xl border border-[var(--tg-theme-hint-color)]/40 disabled:opacity-50"
+                  className="flex-1 py-3 rounded-xl font-medium border border-[var(--tg-theme-hint-color)]/40 disabled:opacity-50"
                 >
                   Отмена
                 </button>
@@ -380,7 +379,7 @@ export default function Home({ telegramId }) {
                       setProfileSaving(false)
                     }
                   }}
-                  className="flex-1 py-2 rounded-xl font-medium text-white disabled:opacity-50"
+                  className="flex-1 py-3 rounded-xl font-medium text-white disabled:opacity-50"
                   style={{ background: 'var(--tg-theme-button-color)', color: 'var(--tg-theme-button-text-color)' }}
                 >
                   {profileSaving ? 'Сохранение...' : 'Сохранить'}
