@@ -25,7 +25,8 @@ export default function Home({ telegramId }) {
   const [showMatchInput, setShowMatchInput] = useState(false)
   const [showNameHint, setShowNameHint] = useState(false)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
-  const [profileName, setProfileName] = useState('')
+  const [profileFirstName, setProfileFirstName] = useState('')
+  const [profileLastName, setProfileLastName] = useState('')
   const [profileSaving, setProfileSaving] = useState(false)
   const [profileError, setProfileError] = useState('')
   const location = useLocation()
@@ -227,7 +228,9 @@ export default function Home({ telegramId }) {
             <button
               type="button"
               onClick={() => {
-                setProfileName(player.name || '')
+                const parts = (player.name || '').trim().split(/\s+/)
+                setProfileFirstName(parts[0] || '')
+                setProfileLastName(parts.slice(1).join(' ') || '')
                 setProfileError('')
                 setIsProfileOpen(true)
                 try {
@@ -262,19 +265,15 @@ export default function Home({ telegramId }) {
 
       <div className="mb-4 p-3 rounded-xl border border-[var(--tg-theme-hint-color)]/40">
         <h2 className="text-base font-bold mb-1">Профиль</h2>
-        <p className="text-sm text-[var(--tg-theme-text-color)] mb-1">
-          Имя в лиге:{' '}
-          <span className="font-medium">{player.name || '—'}</span>
+        <p className="text-sm text-[var(--tg-theme-text-color)] mb-2 font-medium">
+          {player.name || '—'}
         </p>
-        {player.telegram_id && (
-          <p className="text-xs text-[var(--tg-theme-hint-color)] mb-2">
-            Telegram ID: {player.telegram_id}
-          </p>
-        )}
         <button
           type="button"
           onClick={() => {
-            setProfileName(player.name || '')
+            const parts = (player.name || '').trim().split(/\s+/)
+            setProfileFirstName(parts[0] || '')
+            setProfileLastName(parts.slice(1).join(' ') || '')
             setProfileError('')
             setIsProfileOpen(true)
           }}
@@ -320,14 +319,24 @@ export default function Home({ telegramId }) {
               <p className="text-sm text-[var(--tg-theme-hint-color)] mb-3">
                 Это имя видят другие игроки в приложении, независимо от имени в Telegram.
               </p>
-              <input
-                type="text"
-                value={profileName}
-                onChange={(e) => setProfileName(e.target.value)}
-                maxLength={80}
-                className="w-full mb-2 px-3 py-2 rounded-xl border border-[var(--tg-theme-hint-color)]/40 bg-[var(--tg-theme-bg-color)]"
-                placeholder="Имя и Фамилия"
-              />
+              <div className="space-y-2 mb-2">
+                <input
+                  type="text"
+                  value={profileFirstName}
+                  onChange={(e) => setProfileFirstName(e.target.value)}
+                  maxLength={40}
+                  className="w-full px-3 py-2 rounded-xl border border-[var(--tg-theme-hint-color)]/40 bg-[var(--tg-theme-bg-color)]"
+                  placeholder="Имя"
+                />
+                <input
+                  type="text"
+                  value={profileLastName}
+                  onChange={(e) => setProfileLastName(e.target.value)}
+                  maxLength={40}
+                  className="w-full px-3 py-2 rounded-xl border border-[var(--tg-theme-hint-color)]/40 bg-[var(--tg-theme-bg-color)]"
+                  placeholder="Фамилия"
+                />
+              </div>
               {profileError && (
                 <p className="text-xs text-red-500 mb-2">{profileError}</p>
               )}
@@ -346,16 +355,18 @@ export default function Home({ telegramId }) {
                   type="button"
                   disabled={profileSaving}
                   onClick={async () => {
-                    const trimmed = (profileName || '').trim()
-                    if (!trimmed) {
-                      setProfileError('Имя не может быть пустым')
+                    const first = (profileFirstName || '').trim()
+                    const last = (profileLastName || '').trim()
+                    const fullName = [first, last].filter(Boolean).join(' ')
+                    if (!fullName) {
+                      setProfileError('Укажите имя или фамилию')
                       return
                     }
                     setProfileSaving(true)
                     setProfileError('')
                     try {
-                      const updated = await updatePlayerName(player.id, trimmed)
-                      setPlayer((prev) => ({ ...(prev || {}), ...(updated || {}), name: trimmed }))
+                      const updated = await updatePlayerName(player.id, fullName)
+                      setPlayer((prev) => ({ ...(prev || {}), ...(updated || {}), name: fullName }))
                       try {
                         window.localStorage.setItem('nameHintShown', '1')
                       } catch {
