@@ -13,6 +13,7 @@ import {
   updatePlayerName,
 } from '../api/supabase'
 import MatchInput from '../components/MatchInput'
+import { RESPECT_EMOJI } from '../constants/respect'
 
 export default function Home({ telegramId }) {
   const [player, setPlayer] = useState(null)
@@ -525,7 +526,7 @@ export default function Home({ telegramId }) {
                         color: 'var(--tg-theme-button-text-color)',
                       }}
                     >
-                      {isBusy ? 'Отправка...' : 'Подтвердить'}
+                      {isBusy ? 'Отправка...' : RESPECT_EMOJI}
                     </button>
                   </div>
                 </li>

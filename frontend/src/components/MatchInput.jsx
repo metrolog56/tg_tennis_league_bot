@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Dialog } from '@headlessui/react'
 import { submitMatchForConfirmation } from '../api/supabase'
 import { previewRatingChange } from '../utils/ratingCalc'
+import { RESPECT_EMOJI } from '../constants/respect'
 
 export default function MatchInput({
   divisionId,
@@ -201,7 +202,7 @@ export default function MatchInput({
                 color: 'var(--tg-theme-button-text-color)',
               }}
             >
-              {saving ? 'Сохранение...' : 'Подтвердить'}
+              {saving ? 'Сохранение...' : RESPECT_EMOJI}
             </button>
           </div>
           </>
