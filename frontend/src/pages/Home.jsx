@@ -219,7 +219,7 @@ export default function Home({ telegramId }) {
       <h1 className="text-xl font-bold mb-2">🏠 Главная</h1>
 
       {showNameHint && (
-        <div className="mb-3 p-3 rounded-xl border border-[var(--tg-theme-hint-color)]/40 bg-[var(--tg-theme-secondary-bg-color)]/60">
+        <div className="glass glass-card mb-3 p-3 rounded-xl">
           <p className="text-sm text-[var(--tg-theme-text-color)] mb-2">
             Твоё отображаемое имя сейчас:{' '}
             <span className="font-semibold">{player.name || '—'}</span>.
@@ -264,7 +264,7 @@ export default function Home({ telegramId }) {
         </div>
       )}
 
-      <div className="mb-4 p-3 rounded-xl border border-[var(--tg-theme-hint-color)]/40 flex items-center justify-between gap-3">
+      <div className="glass glass-card mb-4 p-3 rounded-xl flex items-center justify-between gap-3">
         <p className="text-sm text-[var(--tg-theme-text-color)] font-medium truncate min-w-0">
           {player.name || '—'}
         </p>
@@ -289,8 +289,8 @@ export default function Home({ telegramId }) {
           <div className="fixed inset-0 bg-black/50" aria-hidden="true" />
           <div className="fixed inset-0 flex items-center justify-center p-4">
             <Dialog.Panel
-              className="w-full max-w-sm rounded-2xl p-6 shadow-xl"
-              style={{ background: 'var(--tg-theme-bg-color)', color: 'var(--tg-theme-text-color)' }}
+              className="glass glass-modal w-full max-w-sm rounded-2xl p-6 shadow-xl"
+              style={{ color: 'var(--tg-theme-text-color)' }}
             >
               <Dialog.Title className="text-lg font-bold mb-3">Уведомление</Dialog.Title>
               <p className="text-base mb-6">{flashMessage}</p>
@@ -312,8 +312,8 @@ export default function Home({ telegramId }) {
           <div className="fixed inset-0 bg-black/50" aria-hidden="true" />
           <div className="fixed inset-0 flex items-center justify-center p-4">
             <Dialog.Panel
-              className="w-full max-w-sm rounded-2xl p-6 shadow-xl"
-              style={{ background: 'var(--tg-theme-bg-color)', color: 'var(--tg-theme-text-color)' }}
+              className="glass glass-modal w-full max-w-sm rounded-2xl p-6 shadow-xl"
+              style={{ color: 'var(--tg-theme-text-color)' }}
             >
               <Dialog.Title className="text-lg font-bold mb-3">Имя в лиге</Dialog.Title>
               <p className="text-sm text-[var(--tg-theme-hint-color)] mb-3">
@@ -395,9 +395,9 @@ export default function Home({ telegramId }) {
         {season.name} · Дивизион {division.number}
       </p>
 
-      <div className="rounded-lg border border-[var(--tg-theme-hint-color)]/30 overflow-hidden mb-4">
+      <div className="glass glass-table-wrap rounded-lg overflow-hidden mb-4">
         <table className="w-full text-sm">
-          <thead style={{ background: 'var(--tg-theme-secondary-bg-color)' }}>
+          <thead>
             <tr>
               <th className="text-left p-2">Место</th>
               <th className="text-left p-2">Игрок</th>
@@ -493,8 +493,7 @@ export default function Home({ telegramId }) {
               return (
                 <li
                   key={`${m.id}-${m.player1_id}-${m.player2_id}`}
-                  className="p-4 rounded-xl border border-[var(--tg-theme-hint-color)]/30"
-                  style={{ background: 'var(--tg-theme-secondary-bg-color)' }}
+                  className="glass glass-card p-4 rounded-xl"
                 >
                   <h3 className="text-lg font-bold mb-3">Подтверждение результата матча</h3>
                   <p className="text-sm text-[var(--tg-theme-hint-color)] mb-1">Матч с {otherPlayerName}</p>

@@ -50,9 +50,9 @@ export default function Rating({ telegramId }) {
     <div className="p-4 min-w-[320px] max-w-lg mx-auto">
       <h1 className="text-xl font-bold mb-4">📊 Рейтинг</h1>
 
-      <div className="rounded-lg border border-[var(--tg-theme-hint-color)]/30 overflow-hidden">
+      <div className="glass glass-table-wrap rounded-lg overflow-hidden">
         <table className="w-full text-sm">
-          <thead style={{ background: 'var(--tg-theme-secondary-bg-color)' }}>
+          <thead>
             <tr>
               <th className="text-left p-2 w-12">#</th>
               <th className="text-left p-2">Игрок</th>

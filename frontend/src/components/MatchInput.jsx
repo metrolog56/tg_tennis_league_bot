@@ -72,11 +72,8 @@ export default function MatchInput({
       <div className="fixed inset-0 bg-black/50" aria-hidden="true" />
       <div className="fixed inset-0 flex items-center justify-center p-3 min-w-[320px]">
         <Dialog.Panel
-          className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl p-4 shadow-xl"
-          style={{
-            background: 'var(--tg-theme-bg-color)',
-            color: 'var(--tg-theme-text-color)',
-          }}
+          className="glass glass-modal w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl p-4 shadow-xl"
+          style={{ color: 'var(--tg-theme-text-color)' }}
         >
           <Dialog.Title className="text-lg font-bold mb-3">
             Внести результат матча

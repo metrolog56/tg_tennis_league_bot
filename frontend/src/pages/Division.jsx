@@ -35,11 +35,12 @@ function DivisionMatrix({ divisionNumber, matrixData }) {
   return (
     <div className="mb-8">
       <h2 className="text-lg font-semibold mb-2">Дивизион {divisionNumber}</h2>
-      <div className="table-scroll">
+      <div className="glass glass-table-wrap rounded-lg overflow-hidden">
+        <div className="table-scroll">
         <table className="w-full text-sm border-collapse">
-          <thead style={{ background: 'var(--tg-theme-secondary-bg-color)' }}>
+          <thead>
             <tr>
-              <th className="p-1.5 text-left min-w-[60px] sticky left-0 z-10 bg-[var(--tg-theme-secondary-bg-color)]"></th>
+              <th className="p-1.5 text-left min-w-[60px] sticky left-0 z-10"></th>
               {players.map((p) => (
                 <th key={p.id} className="p-1.5 text-center min-w-[44px] max-w-[70px] truncate" title={p.name}>
                   {displayName(p.name)}
@@ -65,6 +66,7 @@ function DivisionMatrix({ divisionNumber, matrixData }) {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   )

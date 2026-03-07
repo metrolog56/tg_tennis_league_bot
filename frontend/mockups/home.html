@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Главная — макет</title>
+  <link rel="stylesheet" href="glass.css" />
+  <style>
+    .theme-toggle {
+      position: fixed; top: max(env(safe-area-inset-top), 12px); right: 16px;
+      padding: 8px 14px; border-radius: 12px; border: 1px solid var(--glass-border);
+      background: var(--glass-bg); backdrop-filter: blur(8px); color: var(--tg-theme-text-color);
+      font-size: 0.875rem; cursor: pointer; z-index: 10;
+    }
+    h1 { font-size: 1.25rem; font-weight: 700; margin: 0 0 8px; }
+    .subtitle { font-size: 0.875rem; color: var(--tg-theme-hint-color); margin-bottom: 16px; }
+    .glass-card, .glass-table-wrap { margin-bottom: 16px; }
+    .profile-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; }
+    .profile-row p { margin: 0; font-size: 0.875rem; font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    .hint-box { padding: 12px; margin-bottom: 16px; }
+    .hint-box p { margin: 0 0 8px; font-size: 0.875rem; }
+    .hint-btns { display: flex; gap: 8px; }
+    .hint-btns button { flex: 1; padding: 12px; border-radius: 16px; font-weight: 500; cursor: pointer; border: none; }
+    .confirm-block { padding: 16px; margin-bottom: 16px; }
+    .confirm-block h3 { margin: 0 0 12px; font-size: 1.125rem; }
+    .confirm-block p { margin: 0 0 8px; font-size: 0.875rem; }
+    .confirm-block .score { font-size: 1.125rem; font-weight: 500; margin: 8px 0 16px; }
+    .confirm-btns { display: flex; gap: 12px; }
+    .confirm-btns button { flex: 1; padding: 12px; border-radius: 16px; font-weight: 500; cursor: pointer; }
+    .add-match-btn { width: 100%; padding: 12px; border-radius: 16px; font-weight: 500; cursor: pointer; margin-top: 8px; border: none; }
+    table { width: 100%; font-size: 0.875rem; border-collapse: collapse; }
+    thead th { text-align: left; padding: 8px; }
+    tbody td { padding: 8px; border-top: 1px solid var(--glass-border); }
+    tbody tr.highlight { background: rgba(59, 130, 246, 0.15); }
+    .back-link { display: inline-block; margin-bottom: 16px; color: var(--tg-theme-link-color); text-decoration: none; font-size: 0.875rem; }
+  </style>
+</head>
+<body>
+  <button type="button" class="theme-toggle" id="themeToggle" aria-label="Переключить тему">Тёмная тема</button>
+  <div class="mockup-page">
+    <a href="index.html" class="back-link">← Все макеты</a>
+    <h1>🏠 Главная</h1>
+
+    <!-- Hint (name) -->
+    <div class="glass glass-card hint-box">
+      <p>Твоё отображаемое имя сейчас: <strong>Иван Петров</strong>. Ты можешь изменить его в профиле, чтобы коллеги могли тебя узнать.</p>
+      <div class="hint-btns">
+        <button type="button" class="btn-primary">Изменить имя</button>
+        <button type="button" style="background: transparent; border: 1px solid var(--glass-border); color: var(--tg-theme-text-color);">Позже</button>
+      </div>
+    </div>
+
+    <!-- Profile card -->
+    <div class="glass glass-card profile-row">
+      <p>Иван Петров</p>
+      <button type="button" class="btn-primary">Изменить имя</button>
+    </div>
+
+    <p class="subtitle">Сезон 2024/25 · Дивизион 3</p>
+
+    <!-- Standings table -->
+    <div class="glass-table-wrap table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Место</th>
+            <th>Игрок</th>
+            <th style="text-align: right;">Очки</th>
+            <th style="text-align: right;">Сеты</th>
+            <th style="text-align: right;">Дельта рейтинга</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>Алексей Смирнов</td>
+            <td style="text-align: right;">24</td>
+            <td style="text-align: right;">12-4</td>
+            <td style="text-align: right;">+2.45</td>
+          </tr>
+          <tr class="highlight">
+            <td>2</td>
+            <td>Иван Петров (вы)</td>
+            <td style="text-align: right;">22</td>
+            <td style="text-align: right;">11-5</td>
+            <td style="text-align: right;">+1.80</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>Мария Козлова</td>
+            <td style="text-align: right;">20</td>
+            <td style="text-align: right;">10-6</td>
+            <td style="text-align: right;">+0.90</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pending confirmation -->
+    <h2 style="font-size: 1rem; font-weight: 700; margin-bottom: 12px;">Ожидает подтверждения от вас</h2>
+    <div class="glass glass-card confirm-block">
+      <h3>Подтверждение результата матча</h3>
+      <p style="color: var(--tg-theme-hint-color);">Матч с Мария Козлова</p>
+      <p><strong>Мария Козлова</strong> внёс результат матча:</p>
+      <p class="score">Вы — 2, Мария Козлова — 1</p>
+      <p style="color: var(--tg-theme-hint-color); font-size: 0.875rem;">Подтвердите, если счёт верный, или отклоните.</p>
+      <div class="confirm-btns">
+        <button type="button" style="background: transparent; border: 1px solid var(--glass-border); color: var(--tg-theme-text-color);">Отклонить</button>
+        <button type="button" class="btn-primary">🤝</button>
+      </div>
+    </div>
+
+    <button type="button" class="btn-primary add-match-btn">➕ Внести результат матча</button>
+  </div>
+
+  <!-- Nav mockup -->
+  <nav class="glass glass-nav mockup-nav">
+    <a href="home.html" class="active"><span class="icon">🏠</span>Главная</a>
+    <a href="rating.html"><span class="icon">📊</span>Рейтинг</a>
+    <a href="#"><span class="icon">🏓</span>Дивизионы</a>
+    <a href="#"><span class="icon">📋</span>Правила</a>
+  </nav>
+
+  <script>
+    (function() {
+      const key = 'mockup-theme';
+      const params = new URLSearchParams(window.location.search);
+      const themeParam = params.get('theme');
+      if (themeParam === 'dark') {
+        document.body.classList.add('theme-dark');
+        try { localStorage.setItem(key, 'dark'); } catch (_) {}
+      } else if (themeParam === 'light') {
+        document.body.classList.remove('theme-dark');
+        try { localStorage.setItem(key, 'light'); } catch (_) {}
+      } else {
+        try { if (localStorage.getItem(key) === 'dark') document.body.classList.add('theme-dark'); } catch (_) {}
+      }
+      const btn = document.getElementById('themeToggle');
+      function updateLabel() {
+        btn.textContent = document.body.classList.contains('theme-dark') ? 'Светлая тема' : 'Тёмная тема';
+      }
+      updateLabel();
+      btn.addEventListener('click', function() {
+        document.body.classList.toggle('theme-dark');
+        try { localStorage.setItem(key, document.body.classList.contains('theme-dark') ? 'dark' : 'light'); } catch (_) {}
+        updateLabel();
+      });
+    })();
+  </script>
+</body>
+</html>

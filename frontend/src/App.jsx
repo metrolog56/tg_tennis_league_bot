@@ -31,8 +31,8 @@ function Nav() {
   }
   return (
     <nav
-      className="flex flex-shrink-0 items-stretch border-t border-[var(--tg-theme-hint-color)]/20 safe-area-pb"
-      style={{ background: 'var(--tg-theme-bg-color)', minHeight: NAV_HEIGHT }}
+      className="glass glass-nav flex flex-shrink-0 items-stretch safe-area-pb"
+      style={{ minHeight: NAV_HEIGHT }}
     >
       {link('/', 'Главная', '🏠')}
       {link('rating', 'Рейтинг', '📊')}

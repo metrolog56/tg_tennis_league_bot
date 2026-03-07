@@ -8,9 +8,11 @@
 
 ```
 tg_tennis_league_bot/
+├── api/                  # REST API (FastAPI + Swagger)
 ├── bot/                  # Telegram-бот (Python, aiogram 3)
 ├── frontend/             # Mini App (React + Vite + Tailwind)
 ├── database/             # Схема и миграции БД (Supabase)
+├── docs/                 # Документация (в т.ч. openapi-supabase.yaml)
 ├── scripts/              # Импорт из CSV и др.
 ├── .github/workflows/    # Деплой фронта на GitHub Pages
 └── README.md
@@ -80,6 +82,25 @@ python3 main.py
 ```
 
 На macOS команда может называться `python3` (если `python` не найден). Бот запустится в режиме long polling. Планировщик каждый день в **23:55** проверяет, последний ли день месяца; если да — закрывает тур и создаёт следующий сезон с ротацией.
+
+---
+
+## 4.1. REST API (опционально)
+
+В каталоге **api/** — REST API на FastAPI с автоматической документацией Swagger.
+
+**Запуск (из корня репозитория):**
+
+```bash
+pip install -r api/requirements.txt
+# Скопируйте api/.env.example в api/.env и укажите SUPABASE_URL, SUPABASE_KEY
+uvicorn api.main:app --reload
+```
+
+- **Swagger UI (REST API):** [http://localhost:8000/docs](http://localhost:8000/docs)
+- **Справка по операциям Supabase (фронт):** [http://localhost:8000/docs-supabase](http://localhost:8000/docs-supabase)
+
+Переменные окружения — те же, что у бота (`SUPABASE_URL`, `SUPABASE_KEY`). Опционально можно задать `API_KEY` и тогда запросы к API должны содержать заголовок `X-API-Key`.
 
 ---
 
@@ -158,6 +179,18 @@ python scripts/import_from_sheets.py path/to/export.csv
 В CSV должны быть колонки **Имя** (или `name`) и **Рейтинг** (или `rating`). Игроки создаются с `telegram_id = NULL`; при первом запуске бота пользователь регистрируется по `/start`, при необходимости можно связать запись по имени вручную или доработать логику в боте.
 
 Перед импортом выполните миграцию **`database/migrations/002_allow_null_telegram_id.sql`**.
+
+### Тестирование на iOS Simulator
+
+Проверка вёрстки, safe area и стиля «стекло» на размерах iPhone без физического устройства:
+
+1. Установите **Xcode** (сайт Apple или App Store). В комплекте идёт **iOS Simulator** (Xcode → Open Developer Tool → Simulator или в терминале: `open -a Simulator`).
+2. В симуляторе откройте **Safari** и перейдите по URL Mini App:
+   - локально: `http://localhost:5173` (предварительно запустите `npm run dev` в каталоге `frontend/`);
+   - либо продовый URL после деплоя на GitHub Pages.
+3. Проверьте адаптив, нижнюю навигацию и отступы safe area (во фронте используются `env(safe-area-inset-*)`).
+
+Официальный клиент Telegram из App Store в симуляторе часто недоступен, поэтому типичный сценарий — тест по прямому URL в Safari. Для отладки веб-страницы на реальном iPhone подключите устройство к Mac и используйте Safari на Mac (меню Develop → выбор устройства).
 
 ### Docker (бот)
 

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Рейтинг — макет</title>
+  <link rel="stylesheet" href="glass.css" />
+  <style>
+    .theme-toggle {
+      position: fixed; top: max(env(safe-area-inset-top), 12px); right: 16px;
+      padding: 8px 14px; border-radius: 12px; border: 1px solid var(--glass-border);
+      background: var(--glass-bg); backdrop-filter: blur(8px); color: var(--tg-theme-text-color);
+      font-size: 0.875rem; cursor: pointer; z-index: 10;
+    }
+    h1 { font-size: 1.25rem; font-weight: 700; margin: 0 0 16px; }
+    table { width: 100%; font-size: 0.875rem; border-collapse: collapse; }
+    thead th { text-align: left; padding: 8px; }
+    thead th:nth-child(3), thead th:nth-child(4), thead th:nth-child(5), thead th:nth-child(6), thead th:nth-child(7) { text-align: right; }
+    tbody td { padding: 8px; border-top: 1px solid var(--glass-border); }
+    tbody td:nth-child(3), tbody td:nth-child(4), tbody td:nth-child(5), tbody td:nth-child(6), tbody td:nth-child(7) { text-align: right; }
+    tbody tr.highlight { background: rgba(59, 130, 246, 0.15); }
+    .back-link { display: inline-block; margin-bottom: 16px; color: var(--tg-theme-link-color); text-decoration: none; font-size: 0.875rem; }
+  </style>
+</head>
+<body>
+  <button type="button" class="theme-toggle" id="themeToggle" aria-label="Переключить тему">Тёмная тема</button>
+  <div class="mockup-page">
+    <a href="index.html" class="back-link">← Все макеты</a>
+    <h1>📊 Рейтинг</h1>
+
+    <div class="glass-table-wrap table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th class="w-12">#</th>
+            <th>Игрок</th>
+            <th>Рейтинг</th>
+            <th>Игры</th>
+            <th>В</th>
+            <th>П</th>
+            <th>%</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>🥇</td>
+            <td>Алексей Смирнов</td>
+            <td>112.45</td>
+            <td>18</td>
+            <td>15</td>
+            <td>3</td>
+            <td>83.3</td>
+          </tr>
+          <tr class="highlight">
+            <td>🥈</td>
+            <td>Иван Петров</td>
+            <td>108.20</td>
+            <td>16</td>
+            <td>12</td>
+            <td>4</td>
+            <td>75.0</td>
+          </tr>
+          <tr>
+            <td>🥉</td>
+            <td>Мария Козлова</td>
+            <td>105.80</td>
+            <td>14</td>
+            <td>10</td>
+            <td>4</td>
+            <td>71.4</td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td>Дмитрий Волков</td>
+            <td>98.50</td>
+            <td>12</td>
+            <td>7</td>
+            <td>5</td>
+            <td>58.3</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <nav class="glass glass-nav mockup-nav">
+    <a href="home.html"><span class="icon">🏠</span>Главная</a>
+    <a href="rating.html" class="active"><span class="icon">📊</span>Рейтинг</a>
+    <a href="#"><span class="icon">🏓</span>Дивизионы</a>
+    <a href="#"><span class="icon">📋</span>Правила</a>
+  </nav>
+
+  <script>
+    (function() {
+      const key = 'mockup-theme';
+      const params = new URLSearchParams(window.location.search);
+      const themeParam = params.get('theme');
+      if (themeParam === 'dark') {
+        document.body.classList.add('theme-dark');
+        try { localStorage.setItem(key, 'dark'); } catch (_) {}
+      } else if (themeParam === 'light') {
+        document.body.classList.remove('theme-dark');
+        try { localStorage.setItem(key, 'light'); } catch (_) {}
+      } else {
+        try { if (localStorage.getItem(key) === 'dark') document.body.classList.add('theme-dark'); } catch (_) {}
+      }
+      const btn = document.getElementById('themeToggle');
+      function updateLabel() {
+        btn.textContent = document.body.classList.contains('theme-dark') ? 'Светлая тема' : 'Тёмная тема';
+      }
+      updateLabel();
+      btn.addEventListener('click', function() {
+        document.body.classList.toggle('theme-dark');
+        try { localStorage.setItem(key, document.body.classList.contains('theme-dark') ? 'dark' : 'light'); } catch (_) {}
+        updateLabel();
+      });
+    })();
+  </script>
+</body>
+</html>

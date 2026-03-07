@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Макеты — стиль «стекло»</title>
+  <link rel="stylesheet" href="glass.css" />
+  <style>
+    .mockup-links { display: flex; flex-direction: column; gap: 12px; margin-top: 24px; }
+    .mockup-links a {
+      display: block;
+      padding: 16px 20px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      color: var(--tg-theme-link-color);
+      text-decoration: none;
+      font-weight: 500;
+      box-shadow: var(--glass-shadow);
+    }
+    .mockup-links a:hover { opacity: 0.9; }
+    .mockup-links a.mockup-dark-link { font-size: 0.875rem; opacity: 0.85; }
+    .theme-toggle {
+      position: fixed;
+      top: max(env(safe-area-inset-top), 12px);
+      right: 16px;
+      padding: 8px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--glass-border);
+      background: var(--glass-bg);
+      backdrop-filter: blur(8px);
+      color: var(--tg-theme-text-color);
+      font-size: 0.875rem;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <button type="button" class="theme-toggle" id="themeToggle" aria-label="Переключить тему">Тёмная тема</button>
+  <div class="mockup-page">
+    <h1 style="margin-bottom: 8px;">Макеты — стиль «стекло»</h1>
+    <p style="color: var(--tg-theme-hint-color); margin: 0;">Откройте страницу в браузере для визуализации до разработки.</p>
+    <nav class="mockup-links">
+      <a href="home.html">Главная</a>
+      <a href="rating.html">Рейтинг</a>
+      <a href="index.html?theme=dark" class="mockup-dark-link">Открыть в тёмной теме</a>
+    </nav>
+  </div>
+  <script>
+    (function() {
+      const key = 'mockup-theme';
+      const params = new URLSearchParams(window.location.search);
+      const themeParam = params.get('theme');
+      if (themeParam === 'dark') {
+        document.body.classList.add('theme-dark');
+        try { localStorage.setItem(key, 'dark'); } catch (_) {}
+      } else if (themeParam === 'light') {
+        document.body.classList.remove('theme-dark');
+        try { localStorage.setItem(key, 'light'); } catch (_) {}
+      } else {
+        try { if (localStorage.getItem(key) === 'dark') document.body.classList.add('theme-dark'); } catch (_) {}
+      }
+      const btn = document.getElementById('themeToggle');
+      function updateLabel() {
+        btn.textContent = document.body.classList.contains('theme-dark') ? 'Светлая тема' : 'Тёмная тема';
+      }
+      updateLabel();
+      btn.addEventListener('click', function() {
+        document.body.classList.toggle('theme-dark');
+        try { localStorage.setItem(key, document.body.classList.contains('theme-dark') ? 'dark' : 'light'); } catch (_) {}
+        updateLabel();
+      });
+    })();
+  </script>
+</body>
+</html>

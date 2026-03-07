@@ -60,9 +60,9 @@ export default function Rules() {
 
       <section>
         <h3 className="font-semibold mb-2">Коэффициент дивизиона (КД)</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm border border-[var(--tg-theme-hint-color)]/30 rounded-lg overflow-hidden">
-            <thead style={{ background: 'var(--tg-theme-secondary-bg-color)' }}>
+        <div className="glass glass-table-wrap overflow-x-auto rounded-lg overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
               <tr>
                 <th className="p-2 text-left">Дивизион</th>
                 <th className="p-2 text-right">КД</th>
@@ -80,9 +80,9 @@ export default function Rules() {
 
       <section>
         <h3 className="font-semibold mb-2">Коэффициент счёта (КС)</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm border border-[var(--tg-theme-hint-color)]/30 rounded-lg overflow-hidden">
-            <thead style={{ background: 'var(--tg-theme-secondary-bg-color)' }}>
+        <div className="glass glass-table-wrap overflow-x-auto rounded-lg overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
               <tr>
                 <th className="p-2 text-left">Счёт матча</th>
                 <th className="p-2 text-right">КС</th>

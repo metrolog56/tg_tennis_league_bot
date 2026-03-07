@@ -1,0 +1,421 @@
+openapi: 3.0.3
+info:
+  title: Tennis League — Supabase API (Frontend)
+  description: |
+    Описание операций с данными лиги, выполняемых через Supabase с Mini App.
+    Реализация — вызовы Supabase client во фронте (frontend/src/api/supabase.js).
+    Этот документ служит справочной документацией «логического» API приложения.
+  version: 1.0.0
+
+paths:
+  /players/by-telegram/{telegram_id}:
+    get:
+      summary: getPlayerByTelegramId
+      description: Найти игрока по Telegram ID.
+      operationId: getPlayerByTelegramId
+      parameters:
+        - name: telegram_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Игрок или null
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Player' }
+
+  /players/{id}:
+    patch:
+      summary: updatePlayerName
+      description: Обновить имя игрока.
+      operationId: updatePlayerName
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, required: [name], properties: { name: { type: string } } }
+      responses:
+        '200':
+          description: Обновлённый игрок
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Player' }
+
+  /seasons/current:
+    get:
+      summary: getCurrentSeason
+      description: Активный сезон (один).
+      operationId: getCurrentSeason
+      responses:
+        '200':
+          description: Сезон или null
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Season' }
+
+  /player-division:
+    get:
+      summary: getPlayerDivision
+      description: Дивизион игрока в текущем или указанном сезоне.
+      operationId: getPlayerDivision
+      parameters:
+        - name: player_id
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+        - name: season_id
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: "division, season, divisionPlayers или null"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  division: { $ref: '#/components/schemas/Division' }
+                  season: { $ref: '#/components/schemas/Season' }
+                  divisionPlayers: { type: array, items: { $ref: '#/components/schemas/DivisionPlayer' } }
+
+  /divisions/{id}:
+    get:
+      summary: getDivisionById
+      description: Дивизион по id с сезоном.
+      operationId: getDivisionById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Дивизион с season
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DivisionWithSeason' }
+
+  /seasons/{season_id}/divisions:
+    get:
+      summary: getDivisionsBySeasonId
+      description: Все дивизионы сезона по номеру.
+      operationId: getDivisionsBySeasonId
+      parameters:
+        - name: season_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Список дивизионов
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Division' } }
+
+  /divisions/{id}/standings:
+    get:
+      summary: getDivisionStandings
+      description: Турнирная таблица дивизиона (division_players + player).
+      operationId: getDivisionStandings
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Список записей с position, total_points, player и т.д.
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/DivisionStandingRow' } }
+
+  /divisions/{id}/matches:
+    get:
+      summary: getDivisionMatches
+      description: Матчи и список игроков дивизиона (для матрицы).
+      operationId: getDivisionMatches
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: "players, matches, matrix"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  players: { type: array, items: { $ref: '#/components/schemas/Player' } }
+                  matches: { type: array, items: { $ref: '#/components/schemas/Match' } }
+                  matrix: { type: object, additionalProperties: { $ref: '#/components/schemas/MatchMatrixCell' } }
+
+  /rating:
+    get:
+      summary: getTopRating / getTopRatingWithStats
+      description: Рейтинг игроков (с games, wins если есть view player_stats).
+      operationId: getTopRatingWithStats
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50 }
+      responses:
+        '200':
+          description: Список игроков с рейтингом и опционально games, wins
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/PlayerWithStats' } }
+
+  /matches/{id}:
+    get:
+      summary: getMatchById
+      description: Матч по id с именами игроков (для экрана подтверждения).
+      operationId: getMatchById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Матч с player1, player2
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MatchWithPlayers' }
+
+  /matches/pending:
+    get:
+      summary: getPendingConfirmationForPlayer
+      description: Матчи в статусе pending_confirm, где игрок — соперник (должен подтвердить).
+      operationId: getPendingConfirmationForPlayer
+      parameters:
+        - name: player_id
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Список матчей
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Match' } }
+
+  /matches/submit-for-confirmation:
+    post:
+      summary: submitMatchForConfirmation
+      description: Внести результат на подтверждение соперником; рейтинг не обновляется.
+      operationId: submitMatchForConfirmation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [division_id, player1_id, player2_id, sets_player1, sets_player2, submitted_by]
+              properties:
+                division_id: { type: string, format: uuid }
+                player1_id: { type: string, format: uuid }
+                player2_id: { type: string, format: uuid }
+                sets_player1: { type: integer }
+                sets_player2: { type: integer }
+                submitted_by: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Созданный/обновлённый матч
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Match' }
+
+  /matches/{id}/confirm:
+    post:
+      summary: confirmMatchResult
+      description: Подтвердить результат матча (соперник). Пересчёт рейтинга и очков.
+      operationId: confirmMatchResult
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, required: [confirmed_by_player_id], properties: { confirmed_by_player_id: { type: string, format: uuid } } }
+      responses:
+        '200':
+          description: Успех
+
+  /matches/{id}/reject:
+    post:
+      summary: rejectMatchResult
+      description: Отклонить результат матча (соперник). Матч возвращается в pending.
+      operationId: rejectMatchResult
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, required: [rejected_by_player_id], properties: { rejected_by_player_id: { type: string, format: uuid } } }
+      responses:
+        '200':
+          description: Успех
+
+  /matches/submit-result:
+    post:
+      summary: submitMatchResult
+      description: Внести результат матча сразу (без подтверждения). Пересчёт рейтинга.
+      operationId: submitMatchResult
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [division_id, player1_id, player2_id, sets_player1, sets_player2]
+              properties:
+                division_id: { type: string, format: uuid }
+                player1_id: { type: string, format: uuid }
+                player2_id: { type: string, format: uuid }
+                sets_player1: { type: integer }
+                sets_player2: { type: integer }
+                submitted_by: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Матч
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Match' }
+
+  /client_sessions:
+    post:
+      summary: saveClientSession
+      description: Сохранить сессию/визит (аналитика).
+      operationId: saveClientSession
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                player_id: { type: string, format: uuid }
+                platform: { type: string }
+                device_type: { type: string }
+                browser: { type: string }
+                browser_version: { type: string }
+                resolution: { type: string }
+                language: { type: string }
+      responses:
+        '200':
+          description: Успех (или ошибка в консоли)
+
+components:
+  schemas:
+    Player:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        telegram_id: { type: integer }
+        telegram_username: { type: string, nullable: true }
+        name: { type: string }
+        rating: { type: number }
+        is_admin: { type: boolean }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+
+    PlayerWithStats:
+      allOf:
+        - { $ref: '#/components/schemas/Player' }
+        - type: object
+          properties:
+            games: { type: integer, nullable: true }
+            wins: { type: integer, nullable: true }
+
+    Season:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        year: { type: integer }
+        month: { type: integer }
+        name: { type: string }
+        status: { type: string, enum: [active, closed] }
+        created_at: { type: string, format: date-time }
+
+    Division:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        season_id: { type: string, format: uuid }
+        number: { type: integer }
+        coef: { type: number }
+        created_at: { type: string, format: date-time }
+
+    DivisionWithSeason:
+      allOf:
+        - { $ref: '#/components/schemas/Division' }
+        - type: object
+          properties:
+            season: { $ref: '#/components/schemas/Season' }
+
+    DivisionPlayer:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        division_id: { type: string, format: uuid }
+        player_id: { type: string, format: uuid }
+        position: { type: integer, nullable: true }
+        total_points: { type: integer }
+        total_sets_won: { type: integer }
+        total_sets_lost: { type: integer }
+        rating_delta: { type: number }
+        player: { $ref: '#/components/schemas/Player' }
+
+    DivisionStandingRow:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        position: { type: integer, nullable: true }
+        total_points: { type: integer }
+        total_sets_won: { type: integer }
+        total_sets_lost: { type: integer }
+        rating_delta: { type: number }
+        player: { $ref: '#/components/schemas/Player' }
+
+    Match:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        division_id: { type: string, format: uuid }
+        player1_id: { type: string, format: uuid }
+        player2_id: { type: string, format: uuid }
+        sets_player1: { type: integer }
+        sets_player2: { type: integer }
+        status: { type: string, enum: [pending, played, not_played, pending_confirm] }
+        submitted_by: { type: string, format: uuid, nullable: true }
+        played_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+
+    MatchWithPlayers:
+      allOf:
+        - { $ref: '#/components/schemas/Match' }
+        - type: object
+          properties:
+            player1: { $ref: '#/components/schemas/Player', nullable: true }
+            player2: { $ref: '#/components/schemas/Player', nullable: true }
+
+    MatchMatrixCell:
+      type: object
+      properties:
+        score: { type: string, nullable: true }
+        status: { type: string }
+        matchId: { type: string, format: uuid }
+        player1_id: { type: string, format: uuid }
+        player2_id: { type: string, format: uuid }
+        sets1: { type: integer }
+        sets2: { type: integer }
+        submitted_by: { type: string, format: uuid, nullable: true }
