@@ -1,6 +1,8 @@
+import os
 from datetime import datetime, timezone
 from typing import Optional
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
@@ -186,8 +188,52 @@ def submit_for_confirmation(
     else:
         r = supabase.table("matches").insert(payload).select().execute()
     if r.data and len(r.data) > 0:
-        return r.data[0]
+        match_row = r.data[0]
+        _trigger_instant_notify(match_row["id"])
+        return match_row
     raise HTTPException(status_code=500, detail="Failed to save match")
+
+
+def _trigger_instant_notify(match_id: str) -> None:
+    """Вызвать бота для мгновенной отправки уведомления сопернику (без блокировки ответа)."""
+    url = (os.getenv("BOT_NOTIFY_URL") or "").strip().rstrip("/")
+    if not url:
+        return
+    secret = (os.getenv("NOTIFY_SECRET") or "").strip()
+    headers = {"X-Notify-Secret": secret} if secret else {}
+    try:
+        with httpx.Client(timeout=5.0) as client:
+            client.post(
+                f"{url}/notify-pending-match",
+                json={"match_id": match_id},
+                headers=headers,
+            )
+    except Exception:
+        pass
+
+
+@router.post("/{match_id}/notify-pending")
+def notify_pending_match(match_id: str):
+    """Запросить у бота немедленную отправку уведомления сопернику (для вызова с фронтенда после записи в Supabase)."""
+    url = (os.getenv("BOT_NOTIFY_URL") or "").strip().rstrip("/")
+    if not url:
+        raise HTTPException(status_code=503, detail="Instant notify not configured")
+    secret = (os.getenv("NOTIFY_SECRET") or "").strip()
+    headers = {"X-Notify-Secret": secret} if secret else {}
+    try:
+        r = httpx.post(
+            f"{url}/notify-pending-match",
+            json={"match_id": match_id},
+            headers=headers,
+            timeout=5.0,
+        )
+        if r.status_code == 401:
+            raise HTTPException(status_code=502, detail="Notify unauthorized")
+        if r.status_code >= 400:
+            raise HTTPException(status_code=502, detail="Notify failed")
+        return r.json()
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=502, detail="Notify service unreachable") from e
 
 
 @router.post("/{match_id}/confirm")

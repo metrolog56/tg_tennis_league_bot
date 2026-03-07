@@ -36,7 +36,8 @@ tg_tennis_league_bot/
    - **`database/migrations/002_allow_null_telegram_id.sql`**
 4. (Опционально) Выполните **`database/seed.sql`** для тестовых данных.
 5. Для столбцов «Игры», «В», «П», «%» на странице Рейтинг выполните **`database/migrations/006_player_stats_view.sql`** (создаёт представление `player_stats`).
-6. В настройках проекта (**Settings → API**) скопируйте:
+6. Для обновления главной в реальном времени (когда соперник вносит результат) выполните **`database/migrations/011_realtime_matches.sql`** (добавляет таблицу `matches` в публикацию Realtime).
+7. В настройках проекта (**Settings → API**) скопируйте:
    - **Project URL** → для `SUPABASE_URL`
    - **anon public** → для фронта и бота (или **service_role** только для бота, если нужны права на запись без RLS).
    - Если шаг 5 пропущен, страница Рейтинг покажет рейтинг без столбцов Игры/В/П/%.
@@ -101,6 +102,12 @@ uvicorn api.main:app --reload
 - **Справка по операциям Supabase (фронт):** [http://localhost:8000/docs-supabase](http://localhost:8000/docs-supabase)
 
 Переменные окружения — те же, что у бота (`SUPABASE_URL`, `SUPABASE_KEY`). Опционально можно задать `API_KEY` и тогда запросы к API должны содержать заголовок `X-API-Key`.
+
+**Мгновенное уведомление и обновление в реальном времени:** если нужна мгновенная отправка сообщения в Telegram сопернику (без ожидания планировщика раз в 2 мин) и обновление экрана у второго игрока без перезагрузки:
+- Примените миграцию **`database/migrations/011_realtime_matches.sql`** в Supabase.
+- В боте задайте `NOTIFY_LISTEN_PORT=8765` и `NOTIFY_SECRET` (общий секрет с API).
+- В API задайте `BOT_NOTIFY_URL=http://<хост_бота>:8765` и тот же `NOTIFY_SECRET`.
+- Во фронте задайте `VITE_API_URL` — базовый URL API (например `https://your-api.example.com`). Тогда после внесения результата фронт вызовет API, API запросит бота — соперник получит сообщение сразу; при открытом приложении данные обновятся по Realtime.
 
 ---
 

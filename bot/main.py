@@ -11,6 +11,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 from handlers import common, results, rating, admin
 from services.scheduler import start_scheduler
+from notify_server import start_notify_server
 
 logging.basicConfig(
     level=logging.INFO,
@@ -44,6 +45,8 @@ async def main() -> None:
     dp.include_router(admin.router)
 
     start_scheduler(bot)
+    if os.getenv("NOTIFY_LISTEN_PORT"):
+        await start_notify_server()
     logger.info("Bot starting...")
     await dp.start_polling(bot)
 

@@ -275,6 +275,7 @@ export async function submitMatchForConfirmation(divisionId, player1Id, player2I
       .select()
       .single()
     if (error) throw error
+    triggerInstantNotify(data?.id)
     return data
   }
   const { data, error } = await supabase
@@ -283,7 +284,16 @@ export async function submitMatchForConfirmation(divisionId, player1Id, player2I
     .select()
     .single()
   if (error) throw error
+  triggerInstantNotify(data?.id)
   return data
+}
+
+/** Вызвать API для мгновенной отправки уведомления сопернику в Telegram (без ожидания ответа). */
+function triggerInstantNotify(matchId) {
+  const apiUrl = import.meta.env.VITE_API_URL
+  if (!apiUrl || !matchId) return
+  const base = apiUrl.replace(/\/$/, '')
+  fetch(`${base}/matches/${matchId}/notify-pending`, { method: 'POST' }).catch(() => {})
 }
 
 /** Apply match result (rating, division_players, rating_history). Used after confirm. */

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Dialog } from '@headlessui/react'
 import {
+  supabase,
   getPlayerByTelegramId,
   getCurrentSeason,
   getPlayerDivision,
@@ -112,6 +113,33 @@ export default function Home({ telegramId }) {
     }).catch(() => {})
     return () => { cancelled = true }
   }, [location.state?.message, location.pathname, navigate, player?.id, divisionData?.division?.id])
+
+  // Realtime: при изменении матчей дивизиона обновляем таблицу и блок «Ожидает подтверждения»
+  useEffect(() => {
+    const divisionId = divisionData?.division?.id
+    const playerId = player?.id
+    if (!divisionId || !playerId) return
+    const channel = supabase
+      .channel(`matches-division-${divisionId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'matches',
+          filter: `division_id=eq.${divisionId}`,
+        },
+        () => {
+          getDivisionStandings(divisionId).then((st) => setStandings(st || []))
+          getDivisionMatches(divisionId).then((mat) => setMatchesMatrix(mat))
+          getPendingConfirmationForPlayer(playerId).then((pending) => setPendingConfirmation(pending || []))
+        }
+      )
+      .subscribe()
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [divisionData?.division?.id, player?.id])
 
   if (!telegramId) {
     const botName = import.meta.env.VITE_TELEGRAM_BOT_NAME || ''

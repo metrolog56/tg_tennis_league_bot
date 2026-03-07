@@ -265,6 +265,65 @@ def prepare_next_season() -> Optional[str]:
     return new_season_id
 
 
+async def send_pending_confirm_for_match(match_id: str, bot: Optional["Bot"] = None) -> bool:
+    """
+    Отправить сопернику уведомление по одному матчу (pending_confirm, notification_sent_at IS NULL).
+    Возвращает True, если уведомление отправлено или уже было отправлено; False при ошибке/пропуске.
+    """
+    if not bot:
+        return False
+    webapp_url = (os.getenv("WEBAPP_URL") or "").strip().rstrip("/")
+    if not webapp_url:
+        logger.debug("WEBAPP_URL not set, skip pending_confirm notification")
+        return False
+    try:
+        client = _get_client()
+        r = (
+            client.table("matches")
+            .select("id, player1_id, player2_id, sets_player1, sets_player2, submitted_by, notification_sent_at")
+            .eq("id", match_id)
+            .execute()
+        )
+        if not r.data or len(r.data) == 0:
+            logger.warning("Match %s not found for notify", match_id)
+            return False
+        m = r.data[0]
+        if m.get("status") != "pending_confirm":
+            return True  # уже сыгран или другой статус — не шлём
+        if m.get("notification_sent_at") is not None:
+            return True  # уже отправлено
+        submitted_by = m.get("submitted_by")
+        p1, p2 = m.get("player1_id"), m.get("player2_id")
+        opponent_id = p2 if submitted_by == p1 else p1
+        s1 = m.get("sets_player1") or 0
+        s2 = m.get("sets_player2") or 0
+        score = f"{s1}:{s2}"
+        submitter_r = client.table("players").select("name").eq("id", submitted_by).execute()
+        submitter_name = (submitter_r.data or [{}])[0].get("name", "Игрок") if submitter_r.data else "Игрок"
+        opp_r = client.table("players").select("telegram_id").eq("id", opponent_id).execute()
+        if not opp_r.data or opp_r.data[0].get("telegram_id") is None:
+            logger.warning("No telegram_id for opponent %s, match %s", opponent_id, match_id)
+            return False
+        telegram_id = int(opp_r.data[0]["telegram_id"])
+        confirm_url = f"{webapp_url}#/confirm-match/{match_id}"
+        text = (
+            f"{submitter_name} внёс результат вашего матча: {score}. "
+            "Подтвердите или отклоните результат."
+        )
+        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="Подтвердить / Отклонить", url=confirm_url)],
+        ])
+        await bot.send_message(telegram_id, text, reply_markup=kb)
+        now_iso = datetime.now(timezone.utc).isoformat()
+        client.table("matches").update({"notification_sent_at": now_iso}).eq("id", match_id).execute()
+        logger.info("Sent pending_confirm notification for match %s to player %s", match_id, opponent_id)
+        return True
+    except Exception as e:
+        logger.exception("send_pending_confirm_for_match failed for %s: %s", match_id, e)
+        return False
+
+
 async def _send_pending_confirm_notifications(bot: Optional["Bot"] = None) -> None:
     """
     Найти матчи status=pending_confirm с notification_sent_at IS NULL,
@@ -272,10 +331,6 @@ async def _send_pending_confirm_notifications(bot: Optional["Bot"] = None) -> No
     обновить notification_sent_at.
     """
     if not bot:
-        return
-    webapp_url = (os.getenv("WEBAPP_URL") or "").strip().rstrip("/")
-    if not webapp_url:
-        logger.debug("WEBAPP_URL not set, skip pending_confirm notifications")
         return
     try:
         client = _get_client()
@@ -287,39 +342,7 @@ async def _send_pending_confirm_notifications(bot: Optional["Bot"] = None) -> No
             .execute()
         )
         for m in r.data or []:
-            match_id = m["id"]
-            submitted_by = m.get("submitted_by")
-            p1, p2 = m.get("player1_id"), m.get("player2_id")
-            opponent_id = p2 if submitted_by == p1 else p1
-            s1 = m.get("sets_player1") or 0
-            s2 = m.get("sets_player2") or 0
-            score = f"{s1}:{s2}"
-            # Имя вносящего
-            submitter_r = client.table("players").select("name").eq("id", submitted_by).execute()
-            submitter_name = (submitter_r.data or [{}])[0].get("name", "Игрок") if submitter_r.data else "Игрок"
-            # telegram_id соперника
-            opp_r = client.table("players").select("telegram_id").eq("id", opponent_id).execute()
-            if not opp_r.data or opp_r.data[0].get("telegram_id") is None:
-                logger.warning("No telegram_id for opponent %s, match %s", opponent_id, match_id)
-                continue
-            telegram_id = int(opp_r.data[0]["telegram_id"])
-            confirm_url = f"{webapp_url}#/confirm-match/{match_id}"
-            text = (
-                f"{submitter_name} внёс результат вашего матча: {score}. "
-                "Подтвердите или отклоните результат."
-            )
-            try:
-                from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-                kb = InlineKeyboardMarkup(inline_keyboard=[
-                    [InlineKeyboardButton(text="Подтвердить / Отклонить", url=confirm_url)],
-                ])
-                await bot.send_message(telegram_id, text, reply_markup=kb)
-            except Exception as e:
-                logger.warning("Failed to send pending_confirm notification to %s: %s", telegram_id, e)
-                continue
-            now_iso = datetime.now(timezone.utc).isoformat()
-            client.table("matches").update({"notification_sent_at": now_iso}).eq("id", match_id).execute()
-            logger.info("Sent pending_confirm notification for match %s to player %s", match_id, opponent_id)
+            await send_pending_confirm_for_match(m["id"], bot)
     except Exception as e:
         logger.exception("_send_pending_confirm_notifications failed: %s", e)
 
