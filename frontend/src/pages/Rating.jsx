@@ -60,7 +60,6 @@ export default function Rating({ telegramId }) {
               <th className="text-right p-2">Игры</th>
               <th className="text-right p-2">В</th>
               <th className="text-right p-2">П</th>
-              <th className="text-right p-2">%</th>
             </tr>
           </thead>
           <tbody>
@@ -70,7 +69,6 @@ export default function Rating({ telegramId }) {
               const games = row.games != null ? Number(row.games) : null
               const wins = row.wins != null ? Number(row.wins) : null
               const losses = games != null && wins != null ? games - wins : null
-              const pct = games != null && games > 0 && wins != null ? (wins / games * 100).toFixed(1) : null
               return (
                 <tr
                   key={row.id}
@@ -88,7 +86,6 @@ export default function Rating({ telegramId }) {
                   <td className="p-2 text-right">{games != null ? games : '—'}</td>
                   <td className="p-2 text-right">{wins != null ? wins : '—'}</td>
                   <td className="p-2 text-right">{losses != null ? losses : '—'}</td>
-                  <td className="p-2 text-right">{pct != null ? `${pct}%` : '—'}</td>
                 </tr>
               )
             })}
