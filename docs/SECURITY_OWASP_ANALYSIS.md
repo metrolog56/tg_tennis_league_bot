@@ -39,9 +39,11 @@
 
 ### 3. Отсутствие CORS
 
-**Суть:** В [api/main.py](api/main.py) не настроен `CORSMiddleware`. Поведение зависит от ASGI-сервера и окружения.
+**Статус:** Исправлено. В [api/main.py](api/main.py) добавлен `CORSMiddleware`; список разрешённых origin'ов задаётся переменной окружения `CORS_ORIGINS` (через запятую).
 
-**Рекомендация:** Явно добавить CORS в FastAPI: разрешать только доверенные origin’ы (например, домен фронта и при необходимости Telegram WebApp origin). Ориентир: [OWASP Cheat Sheet — CORS](https://cheatsheetseries.owasp.org/).
+**Суть (было):** В [api/main.py](api/main.py) не был настроен `CORSMiddleware`. Поведение зависело от ASGI-сервера и окружения.
+
+**Рекомендация (выполнена):** В FastAPI добавлен CORS с доверенными origin'ами из `CORS_ORIGINS`: разрешать только доверенные origin’ы (например, домен фронта и при необходимости Telegram WebApp origin). Ориентир: [OWASP Cheat Sheet — CORS](https://cheatsheetseries.owasp.org/).
 
 ```python
 # Пример (подставить нужные origins)
@@ -120,7 +122,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["https://your-front.com"], all
 |---|----------|-----------|----------|
 | 1 | API без аутентификации | Высокий | Включить optional_api_key глобально или во всех роутерах; задавать API_KEY в prod. |
 | 2 | IDOR по player_id / match_id / submitted_by | Высокий | Ввести привязку вызова к текущему пользователю; проверять владельца/участника на каждом мутирующем и чувствительном GET. |
-| 3 | Нет CORS | Средний | Добавить CORSMiddleware с явным списком origins. |
+| 3 | Нет CORS | Средний | Исправлено: CORSMiddleware + CORS_ORIGINS в api/main.py. |
 | 4 | RLS «allow all» в Supabase | Высокий (долгосрочно) | Перейти к политикам по текущему пользователю; минимум — увести мутации через API с проверкой. |
 | 5 | Нет проверки Telegram initData на сервере | Высокий | Валидировать initData на бэкенде; выдавать токен/сессию. |
 | 6 | Секреты в env | Низкий | Документировать и проверять в деплое. |

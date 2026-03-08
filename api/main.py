@@ -1,9 +1,11 @@
 """
 REST API for Tennis League. OpenAPI (Swagger) at /docs.
 """
+import os
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, PlainTextResponse
 
 from api.routers import divisions, matches, players, seasons
@@ -12,6 +14,17 @@ app = FastAPI(
     title="Tennis League API",
     description="REST API for Лига настольного тенниса",
     version="1.0.0",
+)
+
+# CORS: только доверенные origin'ы из env (OWASP)
+_cors_origins_raw = (os.getenv("CORS_ORIGINS") or "").strip()
+_cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
+    allow_headers=["Content-Type", "X-API-Key"],
 )
 
 
