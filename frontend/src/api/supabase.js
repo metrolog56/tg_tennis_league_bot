@@ -178,7 +178,7 @@ export async function getDivisionMatches(divisionId) {
 export async function getTopRating(limit = 50) {
   const { data, error } = await supabase
     .from('players')
-    .select('id, name, rating, telegram_id')
+    .select('id, name, rating')
     .order('rating', { ascending: false })
     .limit(limit)
   if (error) throw error
@@ -189,7 +189,7 @@ export async function getTopRating(limit = 50) {
 export async function getTopRatingWithStats(limit = 50) {
   const { data, error } = await supabase
     .from('player_stats')
-    .select('id, name, rating, telegram_id, games, wins')
+    .select('id, name, rating, games, wins')
     .order('rating', { ascending: false })
     .limit(limit)
   if (error) {
