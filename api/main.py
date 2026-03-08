@@ -14,10 +14,6 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# Optional: require API key on all routes if API_KEY env is set
-# app.dependency_overrides or add Depends(optional_api_key) to each router.
-# For now we don't enforce it so /docs works without auth.
-
 
 @app.get("/")
 def root():

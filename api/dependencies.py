@@ -3,10 +3,14 @@ FastAPI dependencies: Supabase client and optional API key.
 """
 import os
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Optional
 
-from fastapi import Header, HTTPException
+from fastapi import Depends, HTTPException
+from fastapi.security import APIKeyHeader
 from supabase import Client, create_client
+
+# Security scheme for OpenAPI/Swagger: enables "Authorize" and X-API-Key in /docs
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False, scheme_name="ApiKey")
 
 # Load .env from api/ or project root
 _env_path = Path(__file__).resolve().parent / ".env"
@@ -29,9 +33,7 @@ def get_supabase() -> Client:
     return _client
 
 
-def optional_api_key(
-    x_api_key: Annotated[Optional[str], Header(alias="X-API-Key")] = None,
-) -> None:
+def optional_api_key(x_api_key: Optional[str] = Depends(api_key_header)) -> None:
     """If API_KEY is set in env, require X-API-Key header to match."""
     api_key = (os.getenv("API_KEY") or "").strip()
     if not api_key:

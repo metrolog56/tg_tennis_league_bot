@@ -1,8 +1,12 @@
 from fastapi import APIRouter, Depends
 
-from api.dependencies import get_supabase
+from api.dependencies import get_supabase, optional_api_key
 
-router = APIRouter(prefix="/seasons", tags=["seasons"])
+router = APIRouter(
+    prefix="/seasons",
+    tags=["seasons"],
+    dependencies=[Depends(optional_api_key)],
+)
 
 
 @router.get("/current")

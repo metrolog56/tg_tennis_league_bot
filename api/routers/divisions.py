@@ -1,8 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
 
-from api.dependencies import get_supabase
+from api.dependencies import get_supabase, optional_api_key
 
-router = APIRouter(prefix="/divisions", tags=["divisions"])
+router = APIRouter(
+    prefix="/divisions",
+    tags=["divisions"],
+    dependencies=[Depends(optional_api_key)],
+)
 
 
 @router.get("/{division_id}")

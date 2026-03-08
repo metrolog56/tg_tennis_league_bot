@@ -293,7 +293,9 @@ function triggerInstantNotify(matchId) {
   const apiUrl = import.meta.env.VITE_API_URL
   if (!apiUrl || !matchId) return
   const base = apiUrl.replace(/\/$/, '')
-  fetch(`${base}/matches/${matchId}/notify-pending`, { method: 'POST' }).catch(() => {})
+  const apiKey = import.meta.env.VITE_API_KEY
+  const headers = apiKey ? { 'X-API-Key': apiKey } : {}
+  fetch(`${base}/matches/${matchId}/notify-pending`, { method: 'POST', headers }).catch(() => {})
 }
 
 /** Apply match result (rating, division_players, rating_history). Used after confirm. */

@@ -3,9 +3,13 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from api.dependencies import get_supabase
+from api.dependencies import get_supabase, optional_api_key
 
-router = APIRouter(prefix="/players", tags=["players"])
+router = APIRouter(
+    prefix="/players",
+    tags=["players"],
+    dependencies=[Depends(optional_api_key)],
+)
 
 
 class UpdatePlayerName(BaseModel):

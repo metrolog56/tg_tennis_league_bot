@@ -6,10 +6,14 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from api.dependencies import get_supabase
+from api.dependencies import get_supabase, optional_api_key
 from api.rating_calc import calculate_match_rating
 
-router = APIRouter(prefix="/matches", tags=["matches"])
+router = APIRouter(
+    prefix="/matches",
+    tags=["matches"],
+    dependencies=[Depends(optional_api_key)],
+)
 
 
 def _get_division_by_id(supabase, division_id: str):
