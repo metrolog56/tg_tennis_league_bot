@@ -20,9 +20,14 @@ def _make_mock_supabase():
     return mock
 
 
+def _get_mock_supabase():
+    """Callable with no params so FastAPI OpenAPI schema does not get *args/**kwargs."""
+    return _make_mock_supabase()
+
+
 @pytest.fixture
 def client():
-    with patch("api.dependencies.get_supabase", return_value=_make_mock_supabase()):
+    with patch("api.dependencies.get_supabase", _get_mock_supabase):
         from api.main import app
         yield TestClient(app)
 
