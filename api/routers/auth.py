@@ -6,10 +6,11 @@ import time
 from typing import Optional
 
 import jwt
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from api.dependencies import get_supabase, optional_api_key
+from api.limiter import limiter
 from api.telegram_auth import validate_init_data
 
 router = APIRouter(
@@ -38,7 +39,9 @@ def _get_jwt_secret() -> str:
 
 
 @router.post("/telegram")
+@limiter.limit("10/minute")
 def auth_telegram(
+    request: Request,
     body: TelegramAuthBody,
     supabase=Depends(get_supabase),
 ):
