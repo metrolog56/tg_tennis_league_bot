@@ -14,3 +14,6 @@ build/
 .coverage
 htmlcov/
 .DS_Store
+
+# Локальный анализ безопасности (не публиковать на GitHub)
+docs/SECURITY_OWASP_ANALYSIS.md
