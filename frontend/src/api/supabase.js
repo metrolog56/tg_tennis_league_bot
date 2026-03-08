@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { calculateMatchRating } from '../utils/ratingCalc'
+import * as leagueApi from './leagueApi'
 
 const url = import.meta.env.VITE_SUPABASE_URL
 const key = import.meta.env.VITE_SUPABASE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -11,22 +12,18 @@ if (!url || !key) {
 export const supabase = createClient(url || '', key || '')
 
 export async function saveClientSession(clientData, playerId = null, platform = null) {
-  if (!url || !key) {
-    const e = new Error('Supabase URL or key not set (check VITE_SUPABASE_* in .env)')
+  if (!import.meta.env.VITE_API_URL) {
+    const e = new Error('VITE_API_URL not set (client sessions go through API)')
     console.warn('[analytics]', e.message)
     return e
   }
-  const row = {
-    ...clientData,
-    player_id: playerId || null,
-    platform: platform || null,
-  }
-  const { data, error } = await supabase.from('client_sessions').insert(row).select('id')
-  if (error) {
-    console.warn('[analytics] Client session save failed:', error.message, error.code, error.details)
+  try {
+    await leagueApi.saveClientSession(clientData, playerId, platform)
+    return null
+  } catch (error) {
+    console.warn('[analytics] Client session save failed:', error?.message ?? error)
     return error
   }
-  return null
 }
 
 export async function getPlayerByTelegramId(telegramId) {
@@ -40,10 +37,11 @@ export async function getPlayerByTelegramId(telegramId) {
 }
 
 export async function updatePlayerName(playerId, newName) {
-  const name = (newName || '').trim()
-  if (!name) {
-    throw new Error('Имя не может быть пустым')
+  if (import.meta.env.VITE_API_URL) {
+    return leagueApi.updatePlayerName(playerId, newName)
   }
+  const name = (newName || '').trim()
+  if (!name) throw new Error('Имя не может быть пустым')
   const { data, error } = await supabase
     .from('players')
     .update({ name })
@@ -233,6 +231,9 @@ export async function getPendingConfirmationForPlayer(playerId) {
 
 /** Submit result for opponent confirmation; does not update ratings. */
 export async function submitMatchForConfirmation(divisionId, player1Id, player2Id, sets1, sets2, submittedBy) {
+  if (import.meta.env.VITE_API_URL) {
+    return leagueApi.submitMatchForConfirmation(divisionId, player1Id, player2Id, sets1, sets2, submittedBy)
+  }
   let existing = null
   const { data: r1 } = await supabase
     .from('matches')
@@ -252,10 +253,7 @@ export async function submitMatchForConfirmation(divisionId, player1Id, player2I
       .maybeSingle()
     if (r2) existing = r2
   }
-  if (existing?.status === 'played') {
-    throw new Error('Этот матч уже внесён.')
-  }
-
+  if (existing?.status === 'played') throw new Error('Этот матч уже внесён.')
   const payload = {
     division_id: divisionId,
     player1_id: player1Id,
@@ -266,36 +264,16 @@ export async function submitMatchForConfirmation(divisionId, player1Id, player2I
     submitted_by: submittedBy,
     played_at: null,
   }
-
   if (existing?.id) {
-    const { data, error } = await supabase
-      .from('matches')
-      .update(payload)
-      .eq('id', existing.id)
-      .select()
-      .single()
+    const { data, error } = await supabase.from('matches').update(payload).eq('id', existing.id).select().single()
     if (error) throw error
-    triggerInstantNotify(data?.id)
+    leagueApi.notifyPending(data?.id, submittedBy)
     return data
   }
-  const { data, error } = await supabase
-    .from('matches')
-    .insert(payload)
-    .select()
-    .single()
+  const { data, error } = await supabase.from('matches').insert(payload).select().single()
   if (error) throw error
-  triggerInstantNotify(data?.id)
+  leagueApi.notifyPending(data?.id, submittedBy)
   return data
-}
-
-/** Вызвать API для мгновенной отправки уведомления сопернику в Telegram (без ожидания ответа). */
-function triggerInstantNotify(matchId) {
-  const apiUrl = import.meta.env.VITE_API_URL
-  if (!apiUrl || !matchId) return
-  const base = apiUrl.replace(/\/$/, '')
-  const apiKey = import.meta.env.VITE_API_KEY
-  const headers = apiKey ? { 'X-API-Key': apiKey } : {}
-  fetch(`${base}/matches/${matchId}/notify-pending`, { method: 'POST', headers }).catch(() => {})
 }
 
 /** Apply match result (rating, division_players, rating_history). Used after confirm. */
@@ -406,6 +384,9 @@ async function applyMatchResultAsPlayed(match) {
 }
 
 export async function confirmMatchResult(matchId, confirmedByPlayerId) {
+  if (import.meta.env.VITE_API_URL) {
+    return leagueApi.confirmMatchResult(matchId, confirmedByPlayerId)
+  }
   const { data: row, error: fetchError } = await supabase.from('matches').select('*').eq('id', matchId).maybeSingle()
   if (fetchError) throw fetchError
   if (!row || row.status !== 'pending_confirm') throw new Error('Матч не найден или уже обработан.')
@@ -416,6 +397,9 @@ export async function confirmMatchResult(matchId, confirmedByPlayerId) {
 }
 
 export async function rejectMatchResult(matchId, rejectedByPlayerId) {
+  if (import.meta.env.VITE_API_URL) {
+    return leagueApi.rejectMatchResult(matchId, rejectedByPlayerId)
+  }
   const { data: row, error: fetchError } = await supabase.from('matches').select('*').eq('id', matchId).maybeSingle()
   if (fetchError) throw fetchError
   if (!row || row.status !== 'pending_confirm') throw new Error('Матч не найден или уже обработан.')

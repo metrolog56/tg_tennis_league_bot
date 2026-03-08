@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, PlainTextResponse
 
-from api.routers import divisions, matches, players, seasons
+from api.routers import client_sessions, divisions, matches, players, seasons
 
 app = FastAPI(
     title="Tennis League API",
@@ -24,7 +24,7 @@ app.add_middleware(
     allow_origins=_cors_origins,
     allow_credentials=False,
     allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
-    allow_headers=["Content-Type", "X-API-Key"],
+    allow_headers=["Content-Type", "X-API-Key", "X-Player-Id"],
 )
 
 
@@ -42,6 +42,7 @@ app.include_router(players.router)
 app.include_router(seasons.router)
 app.include_router(divisions.router)
 app.include_router(matches.router)
+app.include_router(client_sessions.router)
 
 
 def _supabase_openapi_path() -> Path:
