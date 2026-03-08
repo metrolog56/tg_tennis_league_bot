@@ -2,7 +2,6 @@
 FastAPI dependencies: Supabase client, optional API key, current player (IDOR protection).
 Supports both Bearer JWT (from /auth/telegram) and legacy X-Player-Id.
 """
-import logging
 import os
 from pathlib import Path
 from typing import Optional
@@ -11,8 +10,6 @@ import jwt
 from fastapi import Depends, Header, HTTPException
 from fastapi.security import APIKeyHeader
 from supabase import Client, create_client
-
-logger = logging.getLogger(__name__)
 
 # Security scheme for OpenAPI/Swagger: enables "Authorize" and X-API-Key in /docs
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False, scheme_name="ApiKey")
@@ -85,14 +82,8 @@ def require_current_player_id(
 ) -> str:
     """Require X-Player-Id for endpoints that must know the actor (access control)."""
     if not current:
-        logger.warning("Access denied: missing X-Player-Id (endpoint requires caller identity)")
         raise HTTPException(
             status_code=403,
             detail="X-Player-Id required for this action",
         )
     return current
-
-
-def _log_access_denied(endpoint: str, reason: str) -> None:
-    """Log 403 access denial (OWASP: minimal context, no secrets)."""
-    logger.warning("Access denied: endpoint=%s reason=%s", endpoint, reason)

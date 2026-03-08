@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from api.dependencies import (
@@ -11,8 +11,8 @@ from api.dependencies import (
     get_supabase,
     optional_api_key,
     require_current_player_id,
-    _log_access_denied,
 )
+from api.limiter import limiter
 from api.rating_calc import calculate_match_rating
 
 router = APIRouter(
@@ -132,7 +132,6 @@ def get_pending_confirmation(
     Only returns pending matches for the current caller (player_id must equal X-Player-Id).
     """
     if current_player_id != player_id:
-        _log_access_denied("GET /matches/pending", "player_id does not match X-Player-Id")
         raise HTTPException(status_code=403, detail="Access denied: only your own pending matches")
     r = (
         supabase.table("matches")
@@ -166,7 +165,6 @@ def get_match_by_id(
     if current_player_id is not None:
         p1, p2 = match.get("player1_id"), match.get("player2_id")
         if current_player_id != p1 and current_player_id != p2:
-            _log_access_denied("GET /matches/{match_id}", "caller is not a participant")
             raise HTTPException(status_code=403, detail="Access denied: only participants can view this match")
     p1 = supabase.table("players").select("id, name, telegram_id").eq("id", match["player1_id"]).execute()
     p2 = supabase.table("players").select("id, name, telegram_id").eq("id", match["player2_id"]).execute()
@@ -185,7 +183,6 @@ def submit_for_confirmation(
     submitted_by must match X-Player-Id (caller identity).
     """
     if current_player_id != body.submitted_by:
-        _log_access_denied("POST /matches/submit-for-confirmation", "submitted_by does not match X-Player-Id")
         raise HTTPException(status_code=403, detail="Access denied: submitted_by must be the current player")
     existing = None
     for p1, p2 in [(body.player1_id, body.player2_id), (body.player2_id, body.player1_id)]:
@@ -243,7 +240,9 @@ def _trigger_instant_notify(match_id: str) -> None:
 
 
 @router.post("/{match_id}/notify-pending")
+@limiter.limit("10/minute")
 def notify_pending_match(
+    request: Request,
     match_id: str,
     supabase=Depends(get_supabase),
     current_player_id=Depends(require_current_player_id),
@@ -256,7 +255,6 @@ def notify_pending_match(
         raise HTTPException(status_code=404, detail="Match not found")
     row = r.data[0]
     if current_player_id not in (row.get("player1_id"), row.get("player2_id")):
-        _log_access_denied("POST /matches/{match_id}/notify-pending", "caller is not a participant")
         raise HTTPException(status_code=403, detail="Access denied: only participants may request notify")
     url = (os.getenv("BOT_NOTIFY_URL") or "").strip().rstrip("/")
     if not url:
@@ -293,7 +291,6 @@ def confirm_match(
     if not confirmed_by:
         raise HTTPException(status_code=422, detail="confirmed_by_player_id required")
     if current_player_id != confirmed_by:
-        _log_access_denied("POST /matches/{match_id}/confirm", "confirmed_by_player_id does not match X-Player-Id")
         raise HTTPException(status_code=403, detail="Access denied: confirmed_by_player_id must be the current player")
     r = supabase.table("matches").select("*").eq("id", match_id).execute()
     if not r.data or len(r.data) == 0:
@@ -326,7 +323,6 @@ def reject_match(
     if not rejected_by:
         raise HTTPException(status_code=422, detail="rejected_by_player_id required")
     if current_player_id != rejected_by:
-        _log_access_denied("POST /matches/{match_id}/reject", "rejected_by_player_id does not match X-Player-Id")
         raise HTTPException(status_code=403, detail="Access denied: rejected_by_player_id must be the current player")
     r = supabase.table("matches").select("*").eq("id", match_id).execute()
     if not r.data or len(r.data) == 0:

@@ -1,14 +1,22 @@
 """
 REST API for Tennis League. OpenAPI (Swagger) at /docs.
 """
+import logging
 import os
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, PlainTextResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+
+from api.limiter import limiter
 from api.routers import auth, client_sessions, divisions, matches, players, seasons
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Tennis League API",
@@ -26,6 +34,25 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
     allow_headers=["Content-Type", "X-API-Key", "X-Player-Id", "Authorization"],
 )
+
+app.state.limiter = limiter
+from slowapi import _rate_limit_exceeded_handler
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
+
+
+@app.exception_handler(StarletteHTTPException)
+def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    """Log 401/403 access denials (OWASP: minimal context, no secrets)."""
+    if exc.status_code in (401, 403):
+        logger.warning(
+            "Access denied: status=%s path=%s detail=%s",
+            exc.status_code,
+            request.url.path,
+            exc.detail,
+        )
+    from starlette.responses import JSONResponse
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
 
 @app.get("/")
