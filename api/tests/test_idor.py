@@ -2,41 +2,19 @@
 IDOR / access control tests (SECURITY_OWASP_ANALYSIS §2).
 Endpoints that act on player_id or match_id must verify X-Player-Id matches the resource owner/participant.
 """
+import sys
 from typing import Optional
 from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
+# client, _make_mock_supabase, _get_mock_supabase from conftest (shared ref for dependency_overrides)
+from api.tests.conftest import _make_mock_supabase
+
 PLAYER_A = "00000000-0000-0000-0000-000000000001"
 PLAYER_B = "00000000-0000-0000-0000-000000000002"
 MATCH_ID = "00000000-0000-0000-0000-000000000010"
-
-
-def _make_mock_supabase():
-    mock = MagicMock()
-    mock_execute = MagicMock()
-    mock_execute.data = []
-    mock.table.return_value.select.return_value.eq.return_value.execute.return_value = mock_execute
-    mock.table.return_value.select.return_value.order.return_value.limit.return_value.execute.return_value = mock_execute
-    mock.table.return_value.select.return_value.execute.return_value = mock_execute
-    mock.table.return_value.update.return_value.eq.return_value.select.return_value.execute.return_value = mock_execute
-    mock.table.return_value.update.return_value.eq.return_value.execute.return_value = mock_execute
-    mock.table.return_value.insert.return_value.select.return_value.execute.return_value = mock_execute
-    mock.table.return_value.select.return_value.or_.return_value.execute.return_value = mock_execute
-    return mock
-
-
-def _get_mock_supabase():
-    """Callable with no params so FastAPI OpenAPI schema does not get *args/**kwargs."""
-    return _make_mock_supabase()
-
-
-@pytest.fixture
-def client():
-    with patch("api.dependencies.get_supabase", _get_mock_supabase):
-        from api.main import app
-        yield TestClient(app)
 
 
 def _auth_headers(api_key: str = "secret123", player_id: Optional[str] = None):
@@ -130,19 +108,20 @@ def test_submit_for_confirmation_submitted_by_mismatch_returns_403(client, monke
 
 def test_notify_pending_caller_not_participant_returns_403(client, monkeypatch):
     monkeypatch.setenv("API_KEY", "secret123")
-    from api.dependencies import get_supabase
     mock_sb = _make_mock_supabase()
     mock_sb.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [
         {"player1_id": PLAYER_A, "player2_id": PLAYER_B}
     ]
-    client.app.dependency_overrides[get_supabase] = lambda: mock_sb
-    try:
-        r = client.post(
+    for key in list(sys.modules.keys()):
+        if key == "api.main" or key == "api.routers" or key.startswith("api.routers."):
+            del sys.modules[key]
+    with patch("api.dependencies.get_supabase", lambda: mock_sb):
+        from api.main import app
+        tc = TestClient(app)
+        r = tc.post(
             f"/matches/{MATCH_ID}/notify-pending",
             headers=_auth_headers(player_id="00000000-0000-0000-0000-000000000099"),
         )
-    finally:
-        client.app.dependency_overrides.pop(get_supabase, None)
     assert r.status_code == 403
     assert "participant" in (r.json() or {}).get("detail", "").lower() or "access denied" in (r.json() or {}).get("detail", "").lower()
 
@@ -206,20 +185,21 @@ def test_reject_rejected_by_mismatch_returns_403(client, monkeypatch):
 
 def test_get_match_by_id_non_participant_returns_403(client, monkeypatch):
     monkeypatch.setenv("API_KEY", "secret123")
-    from api.dependencies import get_supabase
     mock_sb = _make_mock_supabase()
     mock_sb.table.return_value.select.return_value.eq.return_value.execute.side_effect = [
         MagicMock(data=[{"id": MATCH_ID, "player1_id": PLAYER_A, "player2_id": PLAYER_B}]),
         MagicMock(data=[{"id": PLAYER_A, "name": "A", "telegram_id": 1}]),
         MagicMock(data=[{"id": PLAYER_B, "name": "B", "telegram_id": 2}]),
     ]
-    client.app.dependency_overrides[get_supabase] = lambda: mock_sb
-    try:
-        r = client.get(
+    for key in list(sys.modules.keys()):
+        if key == "api.main" or key == "api.routers" or key.startswith("api.routers."):
+            del sys.modules[key]
+    with patch("api.dependencies.get_supabase", lambda: mock_sb):
+        from api.main import app
+        tc = TestClient(app)
+        r = tc.get(
             f"/matches/{MATCH_ID}",
             headers=_auth_headers(player_id="00000000-0000-0000-0000-000000000099"),
         )
-    finally:
-        client.app.dependency_overrides.pop(get_supabase, None)
     assert r.status_code == 403
     assert "participant" in (r.json() or {}).get("detail", "").lower() or "access denied" in (r.json() or {}).get("detail", "").lower()

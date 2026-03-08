@@ -23,7 +23,10 @@ jobs:
           pip install -r api/requirements.txt
 
       - name: Run API tests
-        run: PYTHONPATH=. python -m pytest api/tests -v
+        env:
+          SUPABASE_URL: https://placeholder.supabase.co
+          SUPABASE_KEY: placeholder-key
+        run: PYTHONPATH=. python -m pytest api/tests -v --tb=short
 
   bot-tests:
     runs-on: ubuntu-latest
