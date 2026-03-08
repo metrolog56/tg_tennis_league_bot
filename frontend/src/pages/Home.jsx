@@ -16,7 +16,7 @@ import {
 import MatchInput from '../components/MatchInput'
 import { RESPECT_EMOJI } from '../constants/respect'
 
-export default function Home({ telegramId }) {
+export default function Home({ telegramId, playerId: _playerId }) {
   const [player, setPlayer] = useState(null)
   const [divisionData, setDivisionData] = useState(null)
   const [standings, setStandings] = useState([])

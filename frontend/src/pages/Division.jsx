@@ -72,7 +72,7 @@ function DivisionMatrix({ divisionNumber, matrixData }) {
   )
 }
 
-export default function Division() {
+export default function Division({ telegramId: _telegramId, playerId: _playerId }) {
   const [season, setSeason] = useState(null)
   const [divisions, setDivisions] = useState([])
   const [divisionMatrixMap, setDivisionMatrixMap] = useState({})

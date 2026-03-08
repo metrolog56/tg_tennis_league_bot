@@ -1,14 +1,23 @@
 /**
- * League REST API client. All mutations go through this layer (X-API-Key, X-Player-Id).
+ * League REST API client. All mutations go through this layer (X-API-Key, Bearer JWT or X-Player-Id).
  * Reads stay via Supabase (anon SELECT).
  */
+import { getAuthToken, getAuthPlayerId } from '../auth/telegramAuth'
+
 const baseUrl = () => (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
 const apiKey = () => import.meta.env.VITE_API_KEY || ''
 
 function headers(playerId = null) {
   const h = { 'Content-Type': 'application/json' }
   if (apiKey()) h['X-API-Key'] = apiKey()
-  if (playerId) h['X-Player-Id'] = String(playerId)
+  const token = getAuthToken()
+  if (token) {
+    h['Authorization'] = `Bearer ${token}`
+    const authPlayerId = getAuthPlayerId()
+    if (authPlayerId) h['X-Player-Id'] = String(authPlayerId)
+  } else if (playerId) {
+    h['X-Player-Id'] = String(playerId)
+  }
   return h
 }
 

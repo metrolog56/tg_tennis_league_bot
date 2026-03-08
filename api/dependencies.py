@@ -1,11 +1,13 @@
 """
 FastAPI dependencies: Supabase client, optional API key, current player (IDOR protection).
+Supports both Bearer JWT (from /auth/telegram) and legacy X-Player-Id.
 """
 import logging
 import os
 from pathlib import Path
 from typing import Optional
 
+import jwt
 from fastapi import Depends, Header, HTTPException
 from fastapi.security import APIKeyHeader
 from supabase import Client, create_client
@@ -47,10 +49,33 @@ def optional_api_key(x_api_key: Optional[str] = Depends(api_key_header)) -> None
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
 
 
+def _player_id_from_bearer(authorization: Optional[str]) -> Optional[str]:
+    """Extract and verify Bearer JWT; return player_id from payload or None."""
+    if not authorization or not isinstance(authorization, str):
+        return None
+    parts = authorization.strip().split()
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        return None
+    token = parts[1]
+    secret = (os.getenv("JWT_SECRET") or "").strip()
+    if not secret:
+        return None
+    try:
+        payload = jwt.decode(token, secret, algorithms=["HS256"])
+        pid = payload.get("player_id")
+        return str(pid) if pid is not None else None
+    except (jwt.InvalidTokenError, jwt.ExpiredSignatureError):
+        return None
+
+
 def get_current_player_id(
+    authorization: Optional[str] = Header(None),
     x_player_id: Optional[str] = Header(None, alias=player_id_header),
 ) -> Optional[str]:
-    """Return current player ID from X-Player-Id header, or None if not sent."""
+    """Return current player ID: from Bearer JWT first, else from X-Player-Id header."""
+    pid = _player_id_from_bearer(authorization)
+    if pid is not None:
+        return pid
     s = (x_player_id or "").strip()
     return s if s else None
 

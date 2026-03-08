@@ -76,15 +76,17 @@ app.add_middleware(CORSMiddleware, allow_origins=["https://your-front.com"], all
 
 ### 5. Идентификация пользователя только на фронте (Telegram initData)
 
+**Статус:** Реализовано (ветка feature/telegram-initdata-jwt-auth). API проверяет подпись initData, выдаёт JWT; фронт обменивает initData на токен и шлёт Bearer в запросах.
+
 **Суть:** В [frontend/src/hooks/useTelegram.js](frontend/src/hooks/useTelegram.js) и [frontend/src/hooks/useSupabase.js](frontend/src/hooks/useSupabase.js) используется `webApp.initDataUnsafe?.user?.id` (Telegram user ID). Серверная проверка подписи Telegram Web App initData в коде не обнаружена.
 
 **Риск:** Клиент может подделать или изменить данные, если не проверять подпись на бэкенде. См. [Telegram Web App — validating data](https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app).
 
-**Рекомендации:**
+**Рекомендации (выполнены):**
 
-- На бэкенде (API или отдельный сервис) реализовать проверку подписи initData (алгоритм из документации Telegram).
-- Выдавать после проверки сессионный токен или JWT с привязкой к `telegram_id` (и при необходимости к `player_id`) и использовать этот токен для вызовов API вместо передачи только `player_id`/`telegram_id` в теле/query.
-- На фронте по возможности использовать только проверенные данные (после успешного обмена initData на токен).
+- На бэкенде (API или отдельный сервис) реализовать проверку подписи initData (алгоритм из документации Telegram). — Реализовано в [api/telegram_auth.py](api/telegram_auth.py), эндпоинт [api/routers/auth.py](api/routers/auth.py) POST /auth/telegram.
+- Выдавать после проверки сессионный токен или JWT с привязкой к `telegram_id` (и при необходимости к `player_id`) и использовать этот токен для вызовов API вместо передачи только `player_id`/`telegram_id` в теле/query. — JWT выдаётся в ответе /auth/telegram; [api/dependencies.py](api/dependencies.py) извлекает player_id из Bearer.
+- На фронте по возможности использовать только проверенные данные (после успешного обмена initData на токен). — [frontend/src/auth/telegramAuth.js](frontend/src/auth/telegramAuth.js), [frontend/src/hooks/useAuth.js](frontend/src/hooks/useAuth.js), [frontend/src/api/leagueApi.js](frontend/src/api/leagueApi.js).
 
 ---
 

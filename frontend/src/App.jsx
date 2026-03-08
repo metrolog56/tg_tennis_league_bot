@@ -5,6 +5,7 @@ import Rating from './pages/Rating'
 import Division from './pages/Division'
 import Rules from './pages/Rules'
 import { useTelegram } from './hooks/useTelegram'
+import { useAuth } from './hooks/useAuth'
 import { getCurrentSeason, saveClientSession } from './api/supabase'
 import { collectClientData } from './analytics/clientData'
 import { initYandexMetrika, hitYandexMetrika } from './analytics/yandex'
@@ -83,7 +84,9 @@ function MetrikaTracker() {
 
 function App() {
   const { user } = useTelegram()
-  const telegramId = user?.id ?? null
+  const { playerId: authPlayerId, telegramId: authTelegramId } = useAuth()
+  const telegramId = authTelegramId ?? user?.id ?? null
+  const playerId = authPlayerId ?? null
   const sessionSent = useRef(false)
 
   useEffect(() => {
@@ -102,7 +105,7 @@ function App() {
       return
     }
     console.warn('[analytics] client_sessions sending', platform)
-    saveClientSession(clientData, null, platform).then((err) => {
+    saveClientSession(clientData, playerId, platform).then((err) => {
       if (err) {
         console.warn('[analytics] client_sessions insert failed', err?.message ?? err)
       } else {
@@ -111,7 +114,7 @@ function App() {
     }).catch((e) => {
       console.warn('[analytics] client_sessions error', e)
     })
-  }, [telegramId])
+  }, [telegramId, playerId])
 
   return (
     <HashRouter>
@@ -119,10 +122,10 @@ function App() {
         <MetrikaTracker />
         <Layout>
           <Routes>
-          <Route index element={<Home telegramId={telegramId} />} />
-          <Route path="/rating" element={<Rating telegramId={telegramId} />} />
-          <Route path="/division" element={<Division telegramId={telegramId} />} />
-          <Route path="/division/:id" element={<Division telegramId={telegramId} />} />
+          <Route index element={<Home telegramId={telegramId} playerId={playerId} />} />
+          <Route path="/rating" element={<Rating telegramId={telegramId} playerId={playerId} />} />
+          <Route path="/division" element={<Division telegramId={telegramId} playerId={playerId} />} />
+          <Route path="/division/:id" element={<Division telegramId={telegramId} playerId={playerId} />} />
           <Route path="/rules" element={<Rules />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { getTopRatingWithStats, getPlayerByTelegramId } from '../api/supabase'
 
-export default function Rating({ telegramId }) {
+export default function Rating({ telegramId, playerId: authPlayerId }) {
   const [list, setList] = useState([])
-  const [currentPlayerId, setCurrentPlayerId] = useState(null)
+  const [currentPlayerId, setCurrentPlayerId] = useState(authPlayerId ?? null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -13,11 +13,11 @@ export default function Rating({ telegramId }) {
       try {
         const [top, player] = await Promise.all([
           getTopRatingWithStats(50),
-          telegramId ? getPlayerByTelegramId(telegramId) : null,
+          telegramId && !authPlayerId ? getPlayerByTelegramId(telegramId) : null,
         ])
         if (!cancelled) {
           setList(top || [])
-          setCurrentPlayerId(player?.id ?? null)
+          setCurrentPlayerId(authPlayerId ?? player?.id ?? null)
         }
       } catch (e) {
         if (!cancelled) setError(e?.message || 'Ошибка загрузки')
@@ -26,7 +26,7 @@ export default function Rating({ telegramId }) {
       }
     }
     load()
-  }, [telegramId])
+  }, [telegramId, authPlayerId])
 
   if (loading) {
     return (
