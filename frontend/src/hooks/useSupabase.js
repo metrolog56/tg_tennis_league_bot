@@ -3,8 +3,9 @@ import { supabase } from '../api/supabase'
 
 /**
  * Хук для данных из Supabase: рейтинг, мой дивизион, дивизион по id с матчами.
+ * validatedTelegramId — только проверенный на бэкенде telegram_id (из useAuth); для загрузки «моего дивизиона» не используем initDataUnsafe.
  */
-export function useSupabase() {
+export function useSupabase(validatedTelegramId = null) {
   const [ratingList, setRatingList] = useState([])
   const [myDivision, setMyDivision] = useState(null)
   const [divisionWithMatches, setDivisionWithMatches] = useState(null)
@@ -95,9 +96,7 @@ export function useSupabase() {
       setError('')
       try {
         await loadRating()
-        const tg = window.Telegram?.WebApp
-        const uid = tg?.initDataUnsafe?.user?.id
-        if (uid && !cancelled) await loadMyDivision(uid)
+        if (validatedTelegramId != null && !cancelled) await loadMyDivision(validatedTelegramId)
       } catch (e) {
         if (!cancelled) setError(e?.message || 'Ошибка загрузки')
       } finally {
@@ -106,7 +105,7 @@ export function useSupabase() {
     }
     run()
     return () => { cancelled = true }
-  }, [loadRating, loadMyDivision])
+  }, [loadRating, loadMyDivision, validatedTelegramId])
 
   return {
     ratingList,
