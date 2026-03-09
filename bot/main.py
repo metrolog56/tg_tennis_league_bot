@@ -32,6 +32,28 @@ async def main() -> None:
     if not token:
         raise ValueError("BOT_TOKEN not set in .env")
 
+    async def _start_health_server() -> None:
+        """Запустить простой TCP-сервер для health-check Koyeb."""
+        port = int(os.getenv("PORT", "8000"))
+
+        async def handle_client(
+            reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+        ) -> None:
+            try:
+                # Просто читаем и молча закрываем соединение
+                await reader.read(100)
+            except Exception:
+                pass
+            try:
+                writer.close()
+                await writer.wait_closed()
+            except Exception:
+                pass
+
+        server = await asyncio.start_server(handle_client, host="0.0.0.0", port=port)
+        addresses = ", ".join(str(sock.getsockname()) for sock in server.sockets or [])
+        logger.info("Health server listening on %s", addresses)
+
     bot = Bot(
         token=token,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
@@ -47,6 +69,7 @@ async def main() -> None:
     start_scheduler(bot)
     if os.getenv("NOTIFY_LISTEN_PORT"):
         await start_notify_server()
+    await _start_health_server()
     logger.info("Bot starting...")
     await dp.start_polling(bot)
 
