@@ -8,7 +8,7 @@ export default function RespectTicker() {
   return (
     <div className="glass-card respect-ticker mb-3 px-3 py-2">
       <div className="respect-ticker-inner" aria-hidden="true">
-        <span>{line + ' '}</span>
+        <span>{line}</span>
         <span>{line}</span>
       </div>
       <span className="sr-only">Уважение в лиге</span>
