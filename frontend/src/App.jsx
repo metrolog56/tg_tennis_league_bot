@@ -1,9 +1,9 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState, lazy, Suspense } from 'react'
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom'
 import Home from './pages/Home'
-import Rating from './pages/Rating'
-import Division from './pages/Division'
-import Rules from './pages/Rules'
+const Rating = lazy(() => import('./pages/Rating'))
+const Division = lazy(() => import('./pages/Division'))
+const Rules = lazy(() => import('./pages/Rules'))
 import { useTelegram } from './hooks/useTelegram'
 import { useAuth } from './hooks/useAuth'
 import { getCurrentSeason, saveClientSession } from './api/supabase'
@@ -69,16 +69,17 @@ function Layout({ children }) {
   )
 }
 
-function MetrikaTracker() {
+function MetrikaTracker({ homeReady }) {
   const location = useLocation()
   const inited = useRef(false)
   useEffect(() => {
+    if (!homeReady) return
     if (!inited.current) {
       initYandexMetrika()
       inited.current = true
     }
     hitYandexMetrika(window.location.href || '#/')
-  }, [location.pathname, location.search, location.hash])
+  }, [homeReady, location.pathname, location.search, location.hash])
   return null
 }
 
@@ -88,47 +89,62 @@ function App() {
   const telegramId = authTelegramId ?? user?.id ?? null
   const playerId = authPlayerId ?? null
   const sessionSent = useRef(false)
+  const [homeReady, setHomeReady] = useState(false)
+  const homeReadyRef = useRef(false)
+
+  const handleHomeReady = () => {
+    if (homeReadyRef.current) return
+    homeReadyRef.current = true
+    setHomeReady(true)
+  }
 
   useEffect(() => {
-    getCurrentSeason().catch(() => {})
-  }, [])
-
-  useEffect(() => {
-    if (sessionSent.current) return
-    sessionSent.current = true
-    const platform = telegramId ? 'telegram' : 'web'
-    let clientData
-    try {
-      clientData = collectClientData()
-    } catch (e) {
-      console.warn('[analytics] collectClientData failed', e)
-      return
-    }
-    console.warn('[analytics] client_sessions sending', platform)
-    saveClientSession(clientData, playerId, platform).then((err) => {
-      if (err) {
-        console.warn('[analytics] client_sessions insert failed', err?.message ?? err)
-      } else {
-        console.warn('[analytics] client_sessions ok')
+    if (!homeReady || sessionSent.current) return
+    const timeout = setTimeout(() => {
+      sessionSent.current = true
+      const platform = telegramId ? 'telegram' : 'web'
+      let clientData
+      try {
+        clientData = collectClientData()
+      } catch (e) {
+        console.warn('[analytics] collectClientData failed', e)
+        return
       }
-    }).catch((e) => {
-      console.warn('[analytics] client_sessions error', e)
-    })
-  }, [telegramId, playerId])
+      console.warn('[analytics] client_sessions sending', platform)
+      saveClientSession(clientData, playerId, platform).then((err) => {
+        if (err) {
+          console.warn('[analytics] client_sessions insert failed', err?.message ?? err)
+        } else {
+          console.warn('[analytics] client_sessions ok')
+        }
+      }).catch((e) => {
+        console.warn('[analytics] client_sessions error', e)
+      })
+    }, 2000)
+    return () => clearTimeout(timeout)
+  }, [homeReady, telegramId, playerId])
 
   return (
     <HashRouter>
       <>
-        <MetrikaTracker />
+        <MetrikaTracker homeReady={homeReady} />
         <Layout>
-          <Routes>
-          <Route index element={<Home telegramId={telegramId} playerId={playerId} />} />
-          <Route path="/rating" element={<Rating telegramId={telegramId} playerId={playerId} />} />
-          <Route path="/division" element={<Division telegramId={telegramId} playerId={playerId} />} />
-          <Route path="/division/:id" element={<Division telegramId={telegramId} playerId={playerId} />} />
-          <Route path="/rules" element={<Rules />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+          <Suspense
+            fallback={
+              <div className="p-4 min-w-[320px] max-w-lg mx-auto">
+                <p className="text-sm text-[var(--tg-theme-hint-color)]">Загрузка...</p>
+              </div>
+            }
+          >
+            <Routes>
+              <Route index element={<Home telegramId={telegramId} playerId={playerId} onInitialDataLoaded={handleHomeReady} />} />
+              <Route path="/rating" element={<Rating telegramId={telegramId} playerId={playerId} />} />
+              <Route path="/division" element={<Division telegramId={telegramId} playerId={playerId} />} />
+              <Route path="/division/:id" element={<Division telegramId={telegramId} playerId={playerId} />} />
+              <Route path="/rules" element={<Rules />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
         </Layout>
       </>
     </HashRouter>

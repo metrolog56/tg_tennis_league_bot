@@ -132,3 +132,34 @@ body {
     background: rgba(255, 255, 255, 0.06);
   }
 }
+
+/* Respect ticker (🤝) */
+.respect-ticker {
+  overflow: hidden;
+  font-size: 0.8rem;
+}
+
+.respect-ticker-inner {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  gap: 1.5rem;
+  will-change: transform;
+  animation: respect-marquee 24s linear infinite;
+}
+
+@keyframes respect-marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .respect-ticker-inner {
+    animation: none;
+    transform: none;
+  }
+}

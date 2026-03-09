@@ -14,9 +14,10 @@ import {
   updatePlayerName,
 } from '../api/supabase'
 import MatchInput from '../components/MatchInput'
+import RespectTicker from '../components/RespectTicker'
 import { RESPECT_EMOJI } from '../constants/respect'
 
-export default function Home({ telegramId, playerId: _playerId }) {
+export default function Home({ telegramId, playerId: _playerId, onInitialDataLoaded }) {
   const [player, setPlayer] = useState(null)
   const [divisionData, setDivisionData] = useState(null)
   const [standings, setStandings] = useState([])
@@ -42,6 +43,24 @@ export default function Home({ telegramId, playerId: _playerId }) {
       return
     }
     let cancelled = false
+    // Попробуем показать последний успешный снэпшот сразу
+    try {
+      const raw = window.localStorage.getItem('homeCacheV1')
+      if (raw) {
+        const cache = JSON.parse(raw)
+        if (cache && cache.telegramId === telegramId) {
+          setPlayer(cache.player || null)
+          setDivisionData(cache.divisionData || null)
+          setStandings(cache.standings || [])
+          setMatchesMatrix(cache.matchesMatrix || null)
+          setPendingConfirmation(cache.pendingConfirmation || [])
+          setLoading(false)
+          if (onInitialDataLoaded) onInitialDataLoaded()
+        }
+      }
+    } catch {
+      // ignore cache issues
+    }
     async function load() {
       try {
         const [p, season] = await Promise.all([
@@ -52,6 +71,7 @@ export default function Home({ telegramId, playerId: _playerId }) {
         setPlayer(p)
         if (!p || !season) {
           setLoading(false)
+          if (onInitialDataLoaded) onInitialDataLoaded()
           return
         }
         const divData = await getPlayerDivision(p.id, season.id)
@@ -69,14 +89,29 @@ export default function Home({ telegramId, playerId: _playerId }) {
             setMatchesMatrix(mat)
             setPendingConfirmation(pending || [])
             setLoading(false)
+            if (onInitialDataLoaded) onInitialDataLoaded()
+            try {
+              window.localStorage.setItem('homeCacheV1', JSON.stringify({
+                telegramId,
+                player: p,
+                divisionData: divData,
+                standings: st || [],
+                matchesMatrix: mat,
+                pendingConfirmation: pending || [],
+              }))
+            } catch {
+              // ignore cache errors
+            }
           }
         } else {
           setLoading(false)
+          if (onInitialDataLoaded) onInitialDataLoaded()
         }
       } catch (e) {
         if (!cancelled) {
           setError(e?.message || 'Ошибка загрузки')
           setLoading(false)
+          if (onInitialDataLoaded) onInitialDataLoaded()
         }
       }
     }
@@ -118,7 +153,7 @@ export default function Home({ telegramId, playerId: _playerId }) {
   useEffect(() => {
     const divisionId = divisionData?.division?.id
     const playerId = player?.id
-    if (!divisionId || !playerId) return
+    if (!divisionId || !playerId || loading) return
     const channel = supabase
       .channel(`matches-division-${divisionId}`)
       .on(
@@ -139,7 +174,7 @@ export default function Home({ telegramId, playerId: _playerId }) {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [divisionData?.division?.id, player?.id])
+  }, [divisionData?.division?.id, player?.id, loading])
 
   if (!telegramId) {
     const botName = import.meta.env.VITE_TELEGRAM_BOT_NAME || ''
@@ -245,6 +280,8 @@ export default function Home({ telegramId, playerId: _playerId }) {
   return (
     <div className="p-4 min-w-[320px] max-w-lg mx-auto">
       <h1 className="text-xl font-bold mb-2">🏠 Главная</h1>
+
+      <RespectTicker />
 
       {showNameHint && (
         <div className="glass glass-card mb-3 p-3 rounded-xl">

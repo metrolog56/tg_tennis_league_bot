@@ -7,3 +7,11 @@
 - В продукте и в коде символ этого принципа — **🤝**.
 - При добавлении фич (реакции, рейтинг, уведомления, формулировки) стоит проверять: не противоречит ли решение идее уважения к сопернику и к игре.
 - Кнопки подтверждения результата матча и связанные сценарии используют 🤝 как явный знак согласия и уважения.
+
+## Безопасность
+
+Безопасность — один из принципов приложения. Руководствоваться OWASP: Top 10, Cheat Sheet Series, Web Security Testing Guide (WSTG). Детали и практики заданы правилом в `.cursor/rules/security-owasp.mdc`.
+
+- [OWASP Top 10:2025](https://owasp.org/Top10/2025/) (в т.ч. A01 Broken Access Control)
+- [OWASP Cheat Sheet Series](https://cheatsheetseries.owasp.org/)
+- [OWASP Web Security Testing Guide (WSTG)](https://github.com/OWASP/wstg)

@@ -1,0 +1,25 @@
+---
+description: Безопасность как принцип разработки; ориентиры и практики по OWASP Top 10, Cheat Sheets и WSTG
+alwaysApply: true
+---
+
+# Безопасность (OWASP)
+
+Безопасность — один из принципов приложения. При разработке и ревью кода опираться на OWASP.
+
+## Источники
+
+- [OWASP Top 10:2025](https://owasp.org/Top10/2025/) — в т.ч. [A01 Broken Access Control](https://owasp.org/Top10/2025/A01_2025-Broken_Access_Control/)
+- [OWASP Cheat Sheet Series](https://cheatsheetseries.owasp.org/)
+- [OWASP Web Security Testing Guide (WSTG)](https://github.com/OWASP/wstg)
+
+## Обязательные практики
+
+- **Access control:** проверки только на сервере или в доверенном API; deny by default; при создании/чтении/обновлении/удалении проверять владение записью (ownership).
+- **IDOR:** не доверять идентификаторам из запроса — всегда проверять, что текущий пользователь имеет право на доступ к ресурсу.
+- **API:** для POST, PUT, DELETE (и чувствительных GET) — явная проверка авторизации; учитывать настройки CORS.
+- **Тестирование:** при добавлении или изменении API и сценариев доступа учитывать сценарии из WSTG (authorization, IDOR, forced browsing).
+
+## Cheat Sheets
+
+При реализации аутентификации, авторизации, сессий, работы с JWT, CORS, REST — сверяться с соответствующими чек-листами в [OWASP Cheat Sheet Series](https://cheatsheetseries.owasp.org/).
