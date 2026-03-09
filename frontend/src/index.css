@@ -143,7 +143,6 @@ body {
   display: inline-flex;
   align-items: center;
   white-space: nowrap;
-  gap: 1.5rem;
   will-change: transform;
   animation: respect-marquee 24s linear infinite;
 }
