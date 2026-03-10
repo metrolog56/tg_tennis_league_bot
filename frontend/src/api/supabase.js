@@ -581,3 +581,100 @@ export async function submitMatchResult(divisionId, player1Id, player2Id, sets1,
 
   return matchRow
 }
+
+// ---------------------------------------------------------------------------
+// Game requests: division challenges and open "looking for game" requests
+// ---------------------------------------------------------------------------
+
+function _nextExpiry2100Moscow() {
+  // 21:00 Moscow (UTC+3) = 18:00 UTC
+  const d = new Date()
+  d.setUTCHours(18, 0, 0, 0)
+  if (Date.now() >= d.getTime()) d.setUTCDate(d.getUTCDate() + 1)
+  return d
+}
+
+export async function createGameRequest(type, targetPlayerId, message, seasonId, playerId) {
+  if (import.meta.env.VITE_API_URL) {
+    return leagueApi.createGameRequest(type, targetPlayerId, message, seasonId, playerId)
+  }
+  const expiry = _nextExpiry2100Moscow()
+  const payload = {
+    requester_id: playerId,
+    type,
+    status: 'pending',
+    expires_at: expiry.toISOString(),
+  }
+  if (targetPlayerId) payload.target_player_id = targetPlayerId
+  if (message) payload.message = message
+  if (seasonId) payload.season_id = seasonId
+  const { data, error } = await supabase.from('game_requests').insert(payload).select().single()
+  if (error) throw new Error(error.message)
+  return data
+}
+
+export async function listGameRequests(seasonId, playerId) {
+  if (import.meta.env.VITE_API_URL) {
+    return leagueApi.listGameRequests(seasonId, playerId)
+  }
+  const now = new Date().toISOString()
+
+  let openQ = supabase
+    .from('game_requests')
+    .select('id, requester_id, type, message, created_at, expires_at, requester:players!requester_id(id, name)')
+    .in('type', ['open_league', 'open_casual'])
+    .eq('status', 'pending')
+    .gt('expires_at', now)
+    .neq('requester_id', playerId)
+    .order('created_at', { ascending: true })
+  if (seasonId) openQ = openQ.eq('season_id', seasonId)
+  const { data: open } = await openQ
+
+  const { data: challenges } = await supabase
+    .from('game_requests')
+    .select('id, requester_id, type, message, created_at, expires_at, requester:players!requester_id(id, name)')
+    .eq('type', 'division_challenge')
+    .eq('target_player_id', playerId)
+    .eq('status', 'pending')
+    .gt('expires_at', now)
+    .order('created_at', { ascending: true })
+
+  const { data: mine } = await supabase
+    .from('game_requests')
+    .select('id, requester_id, type, message, created_at, expires_at, target_player_id, target:players!target_player_id(id, name)')
+    .eq('requester_id', playerId)
+    .eq('status', 'pending')
+    .gt('expires_at', now)
+    .order('created_at', { ascending: true })
+
+  return { open: open || [], challenges: challenges || [], mine: mine || [] }
+}
+
+export async function acceptGameRequest(requestId, playerId) {
+  if (import.meta.env.VITE_API_URL) {
+    return leagueApi.acceptGameRequest(requestId, playerId)
+  }
+  const { data, error } = await supabase
+    .from('game_requests')
+    .update({ status: 'accepted', accepted_by_id: playerId })
+    .eq('id', requestId)
+    .eq('status', 'pending')
+    .select()
+    .single()
+  if (error) throw new Error(error.message)
+  if (!data) throw new Error('Запрос уже был принят другим игроком')
+  return data
+}
+
+export async function cancelGameRequest(requestId, playerId) {
+  if (import.meta.env.VITE_API_URL) {
+    return leagueApi.cancelGameRequest(requestId, playerId)
+  }
+  const { error } = await supabase
+    .from('game_requests')
+    .update({ status: 'cancelled' })
+    .eq('id', requestId)
+    .eq('status', 'pending')
+  if (error) throw new Error(error.message)
+  return { ok: true }
+}

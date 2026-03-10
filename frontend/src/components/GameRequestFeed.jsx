@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { listGameRequests, acceptGameRequest, cancelGameRequest } from '../api/leagueApi'
+import { listGameRequests, acceptGameRequest, cancelGameRequest } from '../api/supabase'
 import { RESPECT_EMOJI } from '../constants/respect'
 
 const TYPE_LABEL = {

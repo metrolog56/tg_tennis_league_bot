@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Dialog } from '@headlessui/react'
-import { createGameRequest } from '../api/leagueApi'
+import { createGameRequest } from '../api/supabase'
 import { RESPECT_EMOJI } from '../constants/respect'
 
 export default function GameRequestModal({
