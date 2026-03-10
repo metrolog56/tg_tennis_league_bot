@@ -7,6 +7,7 @@ import os
 from datetime import datetime, timezone
 from typing import Optional
 from supabase import create_client, Client
+from supabase.lib.client_options import ClientOptions
 
 logger = logging.getLogger(__name__)
 _client: Optional[Client] = None
@@ -26,7 +27,7 @@ def _get_client() -> Client:
         len(key),
         key.startswith("eyJ") if key else False,
     )
-    _client = create_client(url, key)
+    _client = create_client(url, key, options=ClientOptions(postgrest_client_timeout=30))
     return _client
 
 
