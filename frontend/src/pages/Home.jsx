@@ -37,6 +37,42 @@ export default function Home({ telegramId, playerId: _playerId, onInitialDataLoa
   const [flashMessage, setFlashMessage] = useState('')
   const [confirmAction, setConfirmAction] = useState(null)
 
+  async function refreshDivisionData(divisionId, playerId, {
+    updateCache = false,
+    playerSnapshot = null,
+    divisionSnapshot = null,
+    telegramIdSnapshot = null,
+  } = {}) {
+    if (!divisionId || !playerId) return
+    const [st, mat, pending] = await Promise.all([
+      getDivisionStandings(divisionId),
+      getDivisionMatches(divisionId),
+      getPendingConfirmationForPlayer(playerId),
+    ])
+    setStandings(st || [])
+    setMatchesMatrix(mat)
+    setPendingConfirmation(pending || [])
+    if (updateCache) {
+      try {
+        const cachePlayer = playerSnapshot || player
+        const cacheDivision = divisionSnapshot || divisionData
+        const cacheTelegramId = telegramIdSnapshot || telegramId
+        if (cachePlayer && cacheDivision && cacheDivision.division?.id) {
+          window.localStorage.setItem('homeCacheV1', JSON.stringify({
+            telegramId: cacheTelegramId,
+            player: cachePlayer,
+            divisionData: cacheDivision,
+            standings: st || [],
+            matchesMatrix: mat,
+            pendingConfirmation: pending || [],
+          }))
+        }
+      } catch {
+        // ignore cache errors
+      }
+    }
+  }
+
   useEffect(() => {
     if (!telegramId) {
       setLoading(false)
@@ -79,29 +115,15 @@ export default function Home({ telegramId, playerId: _playerId, onInitialDataLoa
         setDivisionData(divData)
         if (divData?.division?.id) {
           const divisionId = divData.division.id
-          const [st, mat, pending] = await Promise.all([
-            getDivisionStandings(divisionId),
-            getDivisionMatches(divisionId),
-            getPendingConfirmationForPlayer(p.id),
-          ])
+          await refreshDivisionData(divisionId, p.id, {
+            updateCache: true,
+            playerSnapshot: p,
+            divisionSnapshot: divData,
+            telegramIdSnapshot: telegramId,
+          })
           if (!cancelled) {
-            setStandings(st || [])
-            setMatchesMatrix(mat)
-            setPendingConfirmation(pending || [])
             setLoading(false)
             if (onInitialDataLoaded) onInitialDataLoaded()
-            try {
-              window.localStorage.setItem('homeCacheV1', JSON.stringify({
-                telegramId,
-                player: p,
-                divisionData: divData,
-                standings: st || [],
-                matchesMatrix: mat,
-                pendingConfirmation: pending || [],
-              }))
-            } catch {
-              // ignore cache errors
-            }
           }
         } else {
           setLoading(false)
@@ -136,17 +158,7 @@ export default function Home({ telegramId, playerId: _playerId, onInitialDataLoa
     if (!msg || !player?.id || !divisionData?.division?.id) return
     setFlashMessage(msg)
     navigate(location.pathname, { replace: true, state: {} })
-    let cancelled = false
-    Promise.all([
-      getDivisionMatches(divisionData.division.id),
-      getPendingConfirmationForPlayer(player.id),
-    ]).then(([mat, pending]) => {
-      if (!cancelled) {
-        setMatchesMatrix(mat)
-        setPendingConfirmation(pending || [])
-      }
-    }).catch(() => {})
-    return () => { cancelled = true }
+    refreshDivisionData(divisionData.division.id, player.id, { updateCache: true })
   }, [location.state?.message, location.pathname, navigate, player?.id, divisionData?.division?.id])
 
   // Realtime: при изменении матчей дивизиона обновляем таблицу и блок «Ожидает подтверждения»
@@ -165,9 +177,7 @@ export default function Home({ telegramId, playerId: _playerId, onInitialDataLoa
           filter: `division_id=eq.${divisionId}`,
         },
         () => {
-          getDivisionStandings(divisionId).then((st) => setStandings(st || []))
-          getDivisionMatches(divisionId).then((mat) => setMatchesMatrix(mat))
-          getPendingConfirmationForPlayer(playerId).then((pending) => setPendingConfirmation(pending || []))
+          refreshDivisionData(divisionId, playerId, { updateCache: true })
         }
       )
       .subscribe()
@@ -182,28 +192,10 @@ export default function Home({ telegramId, playerId: _playerId, onInitialDataLoa
     const divisionId = divisionData?.division?.id
     const playerId = player?.id
     if (!divisionId || !playerId) return
-    let cancelled = false
-
-    async function refresh() {
-      try {
-        const [st, mat, pending] = await Promise.all([
-          getDivisionStandings(divisionId),
-          getDivisionMatches(divisionId),
-          getPendingConfirmationForPlayer(playerId),
-        ])
-        if (!cancelled) {
-          setStandings(st || [])
-          setMatchesMatrix(mat)
-          setPendingConfirmation(pending || [])
-        }
-      } catch {
-        // ignore background refresh errors
-      }
-    }
-
-    const intervalId = window.setInterval(refresh, 30000)
+    const intervalId = window.setInterval(() => {
+      refreshDivisionData(divisionId, playerId, { updateCache: true })
+    }, 30000)
     return () => {
-      cancelled = true
       window.clearInterval(intervalId)
     }
   }, [divisionData?.division?.id, player?.id])
@@ -553,14 +545,7 @@ export default function Home({ telegramId, playerId: _playerId, onInitialDataLoa
                   await confirmMatchResult(m.id, myId)
                   setFlashMessage('Результат подтверждён.')
                   if (!division?.id || !player?.id) return
-                  const [st, mat, pending] = await Promise.all([
-                    getDivisionStandings(division.id),
-                    getDivisionMatches(division.id),
-                    getPendingConfirmationForPlayer(player.id),
-                  ])
-                  setStandings(st)
-                  setMatchesMatrix(mat)
-                  setPendingConfirmation(pending || [])
+                  await refreshDivisionData(division.id, player.id, { updateCache: true })
                 } catch (err) {
                   setFlashMessage(err?.message || 'Ошибка')
                 } finally {
@@ -573,14 +558,7 @@ export default function Home({ telegramId, playerId: _playerId, onInitialDataLoa
                   await rejectMatchResult(m.id, myId)
                   setFlashMessage('Результат отклонён.')
                   if (!division?.id || !player?.id) return
-                  const [st, mat, pending] = await Promise.all([
-                    getDivisionStandings(division.id),
-                    getDivisionMatches(division.id),
-                    getPendingConfirmationForPlayer(player.id),
-                  ])
-                  setStandings(st)
-                  setMatchesMatrix(mat)
-                  setPendingConfirmation(pending || [])
+                  await refreshDivisionData(division.id, player.id, { updateCache: true })
                 } catch (err) {
                   setFlashMessage(err?.message || 'Ошибка')
                 } finally {
@@ -658,14 +636,7 @@ export default function Home({ telegramId, playerId: _playerId, onInitialDataLoa
               setFlashMessage(`Результат отправлен на подтверждение ${opponentName}. После подтверждения счёт и рейтинг обновятся.`)
             }
             if (!division?.id || !player?.id) return
-            const [st, mat, pending] = await Promise.all([
-              getDivisionStandings(division.id),
-              getDivisionMatches(division.id),
-              getPendingConfirmationForPlayer(player.id),
-            ])
-            setStandings(st)
-            setMatchesMatrix(mat)
-            setPendingConfirmation(pending || [])
+            await refreshDivisionData(division.id, player.id, { updateCache: true })
           }}
         />
       )}
