@@ -40,15 +40,17 @@ async def main() -> None:
             reader: asyncio.StreamReader, writer: asyncio.StreamWriter
         ) -> None:
             try:
-                # Просто читаем и молча закрываем соединение
-                await reader.read(100)
+                await reader.read(1024)
+                writer.write(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
+                await writer.drain()
             except Exception:
                 pass
-            try:
-                writer.close()
-                await writer.wait_closed()
-            except Exception:
-                pass
+            finally:
+                try:
+                    writer.close()
+                    await writer.wait_closed()
+                except Exception:
+                    pass
 
         server = await asyncio.start_server(handle_client, host="0.0.0.0", port=port)
         addresses = ", ".join(str(sock.getsockname()) for sock in server.sockets or [])
