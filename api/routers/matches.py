@@ -29,6 +29,79 @@ def _get_division_by_id(supabase, division_id: str):
     return None
 
 
+def _recalc_division_standings(supabase, division_id: str) -> None:
+    """
+    Пересчитать totals в division_players по таблице matches для заданного дивизиона.
+    Используется как защита от рассинхронизации между matches и division_players.
+    """
+    # Собираем все сыгранные матчи дивизиона
+    matches_r = (
+        supabase.table("matches")
+        .select("player1_id, player2_id, sets_player1, sets_player2, status")
+        .eq("division_id", division_id)
+        .execute()
+    )
+    matches = matches_r.data or []
+
+    totals = {}
+
+    def ensure_player(pid: str):
+        if pid not in totals:
+            totals[pid] = {
+                "points": 0,
+                "sets_won": 0,
+                "sets_lost": 0,
+            }
+
+    for m in matches:
+        if m.get("status") != "played":
+            continue
+        p1 = m.get("player1_id")
+        p2 = m.get("player2_id")
+        s1 = int(m.get("sets_player1") or 0)
+        s2 = int(m.get("sets_player2") or 0)
+        if p1 is None or p2 is None:
+            continue
+        if s1 == s2:
+            # Нечего считать, результат некорректен
+            continue
+        ensure_player(p1)
+        ensure_player(p2)
+        # Сеты
+        totals[p1]["sets_won"] += s1
+        totals[p1]["sets_lost"] += s2
+        totals[p2]["sets_won"] += s2
+        totals[p2]["sets_lost"] += s1
+        # Очки: 2 за победу, 1 за поражение
+        if s1 > s2:
+            totals[p1]["points"] += 2
+            totals[p2]["points"] += 1
+        else:
+            totals[p2]["points"] += 2
+            totals[p1]["points"] += 1
+
+    # Обновляем division_players только по агрегатам totals, не трогая rating_delta и position
+    dp_r = (
+        supabase.table("division_players")
+        .select("id, player_id, total_points, total_sets_won, total_sets_lost")
+        .eq("division_id", division_id)
+        .execute()
+    )
+    for row in dp_r.data or []:
+        pid = row.get("player_id")
+        agg = totals.get(pid)
+        if not agg:
+            # Нет сыгранных матчей для этого игрока — оставляем как есть
+            continue
+        supabase.table("division_players").update(
+            {
+                "total_points": agg["points"],
+                "total_sets_won": agg["sets_won"],
+                "total_sets_lost": agg["sets_lost"],
+            }
+        ).eq("id", row["id"]).execute()
+
+
 def _apply_match_result_as_played(supabase, match: dict) -> None:
     division_id = match["division_id"]
     p1_id = match["player1_id"]
@@ -106,6 +179,9 @@ def _apply_match_result_as_played(supabase, match: dict) -> None:
             "rating_after": loser_rating_after,
         },
     ]).execute()
+
+    # После применения результата матча пересчитываем агрегаты standings для дивизиона
+    _recalc_division_standings(supabase, division_id)
 
 
 class SubmitForConfirmationBody(BaseModel):
@@ -341,4 +417,18 @@ def reject_match(
         "submitted_by": None,
         "notification_sent_at": None,
     }).eq("id", match_id).execute()
+    return {"ok": True}
+
+
+@router.post("/admin/divisions/{division_id}/recalc-standings")
+def admin_recalc_standings(
+    division_id: str,
+    supabase=Depends(get_supabase),
+    current_player_id=Depends(require_current_player_id),
+):
+    """
+    Админ-эндпоинт для пересборки totals в division_players по таблице matches.
+    Защищён через API key (optional_api_key) и X-Player-Id; требует авторизованного игрока.
+    """
+    _recalc_division_standings(supabase, division_id)
     return {"ok": True}
