@@ -133,12 +133,14 @@ export async function getDivisionStandings(divisionId) {
       player:players(id, name, rating, telegram_id)
     `)
     .eq('division_id', divisionId)
-    .order('position', { ascending: true, nullsFirst: false })
   if (error) throw error
   const rows = data || []
-  if (rows.length && !rows.some(r => r.position != null)) {
-    rows.sort((a, b) => (b.total_points || 0) - (a.total_points || 0) || ((b.total_sets_won || 0) - (b.total_sets_lost || 0)) - ((a.total_sets_won || 0) - (a.total_sets_lost || 0)))
-  }
+  rows.sort(
+    (a, b) =>
+      (b.total_points || 0) - (a.total_points || 0) ||
+      ((b.total_sets_won || 0) - (b.total_sets_lost || 0)) -
+        ((a.total_sets_won || 0) - (a.total_sets_lost || 0))
+  )
   return rows
 }
 

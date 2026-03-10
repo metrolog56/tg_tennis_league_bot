@@ -176,6 +176,38 @@ export default function Home({ telegramId, playerId: _playerId, onInitialDataLoa
     }
   }, [divisionData?.division?.id, player?.id, loading])
 
+  // Периодический refetch на случай, если подтверждение матча произошло на другом устройстве,
+  // а realtime-подписка не сработала (или недоступна в окружении).
+  useEffect(() => {
+    const divisionId = divisionData?.division?.id
+    const playerId = player?.id
+    if (!divisionId || !playerId) return
+    let cancelled = false
+
+    async function refresh() {
+      try {
+        const [st, mat, pending] = await Promise.all([
+          getDivisionStandings(divisionId),
+          getDivisionMatches(divisionId),
+          getPendingConfirmationForPlayer(playerId),
+        ])
+        if (!cancelled) {
+          setStandings(st || [])
+          setMatchesMatrix(mat)
+          setPendingConfirmation(pending || [])
+        }
+      } catch {
+        // ignore background refresh errors
+      }
+    }
+
+    const intervalId = window.setInterval(refresh, 30000)
+    return () => {
+      cancelled = true
+      window.clearInterval(intervalId)
+    }
+  }, [divisionData?.division?.id, player?.id])
+
   if (!telegramId) {
     const botName = import.meta.env.VITE_TELEGRAM_BOT_NAME || ''
     const telegramLink = botName ? `https://t.me/${botName.replace('@', '')}` : null
