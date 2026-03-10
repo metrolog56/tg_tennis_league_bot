@@ -14,10 +14,13 @@ import {
   updatePlayerName,
 } from '../api/supabase'
 import MatchInput from '../components/MatchInput'
+import MatchResultCard from '../components/MatchResultCard'
 import GameRequestModal from '../components/GameRequestModal'
 import GameRequestFeed from '../components/GameRequestFeed'
 import RespectTicker from '../components/RespectTicker'
 import { RESPECT_EMOJI } from '../constants/respect'
+import { getMatchScenario } from '../utils/matchScenario'
+import { calculateMatchRating } from '../utils/ratingCalc'
 
 export default function Home({ telegramId, playerId: _playerId, onInitialDataLoaded }) {
   const [player, setPlayer] = useState(null)
@@ -39,6 +42,7 @@ export default function Home({ telegramId, playerId: _playerId, onInitialDataLoa
   const navigate = useNavigate()
   const [flashMessage, setFlashMessage] = useState('')
   const [confirmAction, setConfirmAction] = useState(null)
+  const [resultCard, setResultCard] = useState(null)
 
   async function refreshDivisionData(divisionId, playerId, {
     updateCache = false,
@@ -552,6 +556,59 @@ export default function Home({ telegramId, playerId: _playerId, onInitialDataLoa
                 try {
                   await confirmMatchResult(m.id, myId)
                   setFlashMessage('Результат подтверждён.')
+
+                  // Собираем данные для карточки реакции
+                  const findEntry = (pid) =>
+                    divisionPlayers.find((d) => (d.player?.id || d.player_id) === pid)
+                  const p1Entry = findEntry(m.player1_id)
+                  const p2Entry = findEntry(m.player2_id)
+                  const p1Rating = Number(p1Entry?.player?.rating) || 100
+                  const p2Rating = Number(p2Entry?.player?.rating) || 100
+                  const s1 = m.sets_player1 ?? 0
+                  const s2 = m.sets_player2 ?? 0
+                  const kd = Number(division?.coef) || 0.25
+
+                  let delta1 = null
+                  let delta2 = null
+                  if (s1 > s2) {
+                    const { deltaWinner, deltaLoser } = calculateMatchRating(p1Rating, p2Rating, s1, s2, kd)
+                    delta1 = deltaWinner
+                    delta2 = deltaLoser
+                  } else if (s2 > s1) {
+                    const { deltaWinner, deltaLoser } = calculateMatchRating(p2Rating, p1Rating, s2, s1, kd)
+                    delta1 = deltaLoser
+                    delta2 = deltaWinner
+                  }
+
+                  const winnerSets = Math.max(s1, s2)
+                  const loserSets = Math.min(s1, s2)
+                  const winnerIsP1 = s1 > s2
+                  const winnerPosition = winnerIsP1
+                    ? (p1Entry?.position ?? 0)
+                    : (p2Entry?.position ?? 0)
+                  const loserPosition = winnerIsP1
+                    ? (p2Entry?.position ?? 0)
+                    : (p1Entry?.position ?? 0)
+
+                  const scenario = getMatchScenario({ winnerSets, loserSets, winnerPosition, loserPosition })
+
+                  const divName = division?.number ? `Дивизион ${division.number}` : ''
+                  const seasonName = divisionData?.season?.name || ''
+
+                  setResultCard({
+                    scenario,
+                    player1Name: p1Entry?.player?.name || 'Игрок 1',
+                    player2Name: p2Entry?.player?.name || 'Игрок 2',
+                    player1Position: p1Entry?.position ?? 0,
+                    player2Position: p2Entry?.position ?? 0,
+                    sets1: s1,
+                    sets2: s2,
+                    delta1,
+                    delta2,
+                    divisionName: divName,
+                    seasonName,
+                  })
+
                   if (!division?.id || !player?.id) return
                   await refreshDivisionData(division.id, player.id, { updateCache: true })
                 } catch (err) {
@@ -672,6 +729,13 @@ export default function Home({ telegramId, playerId: _playerId, onInitialDataLoa
               setFlashMessage(`Открытый запрос «${label}» отправлен — первый принявший станет вашим соперником. 🎾`)
             }
           }}
+        />
+      )}
+
+      {resultCard && (
+        <MatchResultCard
+          data={resultCard}
+          onClose={() => setResultCard(null)}
         />
       )}
     </div>
