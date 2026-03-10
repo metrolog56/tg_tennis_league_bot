@@ -347,6 +347,17 @@ async def _send_pending_confirm_notifications(bot: Optional["Bot"] = None) -> No
         logger.exception("_send_pending_confirm_notifications failed: %s", e)
 
 
+async def _expire_game_requests() -> None:
+    """Mark pending game_requests whose expires_at has passed as 'expired'. Runs at 21:01 Moscow (18:01 UTC)."""
+    try:
+        client = _get_client()
+        now_iso = datetime.now(timezone.utc).isoformat()
+        client.table("game_requests").update({"status": "expired"}).eq("status", "pending").lte("expires_at", now_iso).execute()
+        logger.info("Expired stale game_requests")
+    except Exception as e:
+        logger.exception("_expire_game_requests failed: %s", e)
+
+
 async def _daily_check(bot: Optional["Bot"] = None) -> None:
     if not _is_last_day_of_month():
         return
@@ -379,5 +390,10 @@ def start_scheduler(bot: Optional["Bot"] = None) -> None:
         args=[bot],
         id="pending_confirm_notify",
     )
+    _scheduler.add_job(
+        _expire_game_requests,
+        CronTrigger(hour=18, minute=1),  # 21:01 Moscow (UTC+3)
+        id="expire_game_requests",
+    )
     _scheduler.start()
-    logger.info("Scheduler started (daily 23:55, pending_confirm every 2 min)")
+    logger.info("Scheduler started (daily 23:55, pending_confirm every 2 min, expire_game_requests at 18:01 UTC)")

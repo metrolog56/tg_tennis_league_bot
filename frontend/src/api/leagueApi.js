@@ -114,3 +114,52 @@ export function notifyPending(matchId, playerId) {
     headers: headers(playerId),
   }).catch(() => {})
 }
+
+export async function createGameRequest(type, targetPlayerId, message, seasonId, playerId) {
+  const url = baseUrl()
+  if (!url) throw new Error('VITE_API_URL not set')
+  const body = { type }
+  if (targetPlayerId) body.target_player_id = targetPlayerId
+  if (message) body.message = message
+  if (seasonId) body.season_id = seasonId
+  const res = await fetch(`${url}/game-requests`, {
+    method: 'POST',
+    headers: headers(playerId),
+    body: JSON.stringify(body),
+  })
+  await checkResponse(res)
+  return res.json()
+}
+
+export async function listGameRequests(seasonId, playerId) {
+  const url = baseUrl()
+  if (!url) throw new Error('VITE_API_URL not set')
+  const params = seasonId ? `?season_id=${encodeURIComponent(seasonId)}` : ''
+  const res = await fetch(`${url}/game-requests${params}`, {
+    headers: headers(playerId),
+  })
+  await checkResponse(res)
+  return res.json()
+}
+
+export async function acceptGameRequest(requestId, playerId) {
+  const url = baseUrl()
+  if (!url) throw new Error('VITE_API_URL not set')
+  const res = await fetch(`${url}/game-requests/${requestId}/accept`, {
+    method: 'POST',
+    headers: headers(playerId),
+  })
+  await checkResponse(res)
+  return res.json()
+}
+
+export async function cancelGameRequest(requestId, playerId) {
+  const url = baseUrl()
+  if (!url) throw new Error('VITE_API_URL not set')
+  const res = await fetch(`${url}/game-requests/${requestId}/cancel`, {
+    method: 'POST',
+    headers: headers(playerId),
+  })
+  await checkResponse(res)
+  return res.json()
+}

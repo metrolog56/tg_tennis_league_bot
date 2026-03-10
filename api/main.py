@@ -14,7 +14,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
 from api.limiter import limiter
-from api.routers import auth, client_sessions, divisions, matches, players, seasons
+from api.routers import auth, client_sessions, divisions, game_requests, matches, players, seasons
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +70,7 @@ app.include_router(players.router)
 app.include_router(seasons.router)
 app.include_router(divisions.router)
 app.include_router(matches.router)
+app.include_router(game_requests.router)
 app.include_router(client_sessions.router)
 
 
