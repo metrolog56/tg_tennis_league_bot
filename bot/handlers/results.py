@@ -3,7 +3,7 @@
 """
 from __future__ import annotations
 
-from aiogram import Router, F
+from aiogram import Bot, Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
@@ -13,8 +13,9 @@ from services.supabase_client import (
     get_player_by_telegram_id,
     get_player_division,
     get_existing_match,
-    submit_match_result,
+    submit_match_for_confirmation,
 )
+from services.scheduler import send_pending_confirm_for_match
 from keyboards.inline import get_opponents_keyboard, get_confirm_keyboard
 
 router = Router()
@@ -119,16 +120,14 @@ async def result_enter_score(message: Message, state: FSMContext) -> None:
 
 
 @router.callback_query(F.data == "result:confirm:yes", ResultStates.confirm)
-async def result_confirm_yes(callback: CallbackQuery, state: FSMContext) -> None:
+async def result_confirm_yes(callback: CallbackQuery, state: FSMContext, bot: Bot) -> None:
     await callback.answer()
     data = await state.get_data()
     division_id = data["division_id"]
-    season_id = data.get("season_id")
     my_id = data["my_player_id"]
     opponent_id = data["opponent_id"]
     my_sets = data["my_sets"]
     opp_sets = data["opponent_sets"]
-    coef = data["division_coef"]
 
     existing = get_existing_match(division_id, my_id, opponent_id)
     if existing and existing.get("status") == "played":
@@ -136,26 +135,21 @@ async def result_confirm_yes(callback: CallbackQuery, state: FSMContext) -> None
         await callback.message.edit_text("Этот матч уже был внесён ранее.")
         return
 
-    match_row, err, deltas = submit_match_result(
+    match_id, err = submit_match_for_confirmation(
         division_id=division_id,
         player1_id=my_id,
         player2_id=opponent_id,
         sets_player1=my_sets,
         sets_player2=opp_sets,
         submitted_by_id=my_id,
-        division_coef=coef,
-        season_id=season_id or "",
     )
     await state.clear()
     if err:
         await callback.message.edit_text(f"Ошибка: {err}")
         return
-    player = get_player_by_telegram_id(callback.from_user.id)
-    rating_now = float(player.get("rating", 0)) if player else 0
-    my_delta = deltas.get(my_id, 0)
-    delta_str = f"+{my_delta:.2f}" if my_delta >= 0 else f"{my_delta:.2f}"
+    await send_pending_confirm_for_match(match_id, bot)
     await callback.message.edit_text(
-        f"✅ Результат внесён!\nВаш рейтинг: <b>{rating_now:.2f}</b> ({delta_str})"
+        "✅ Результат отправлен на подтверждение!\nСоперник получит уведомление. 🤝"
     )
 
 

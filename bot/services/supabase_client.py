@@ -344,6 +344,53 @@ def submit_match_result(
         return None, str(e), {}
 
 
+def submit_match_for_confirmation(
+    division_id: str,
+    player1_id: str,
+    player2_id: str,
+    sets_player1: int,
+    sets_player2: int,
+    submitted_by_id: str,
+) -> tuple[Optional[str], Optional[str]]:
+    """
+    Сохранить результат матча со статусом pending_confirm (без пересчёта рейтинга).
+    Возвращает (match_id, None) при успехе или (None, error_message) при ошибке.
+    """
+    try:
+        client = _get_client()
+        existing = get_existing_match(division_id, player1_id, player2_id)
+        if existing and existing.get("status") == "played":
+            return None, "Этот матч уже внесён и подтверждён."
+        now_iso = datetime.now(timezone.utc).isoformat()
+        if existing:
+            match_id = existing["id"]
+            client.table("matches").update({
+                "sets_player1": sets_player1,
+                "sets_player2": sets_player2,
+                "status": "pending_confirm",
+                "submitted_by": submitted_by_id,
+                "played_at": now_iso,
+                "notification_sent_at": None,
+            }).eq("id", match_id).execute()
+        else:
+            ins = client.table("matches").insert({
+                "division_id": division_id,
+                "player1_id": player1_id,
+                "player2_id": player2_id,
+                "sets_player1": sets_player1,
+                "sets_player2": sets_player2,
+                "status": "pending_confirm",
+                "submitted_by": submitted_by_id,
+                "played_at": now_iso,
+            }).execute()
+            match_id = ins.data[0]["id"] if ins.data else None
+            if not match_id:
+                return None, "Не удалось создать матч."
+        return match_id, None
+    except Exception as e:
+        return None, str(e)
+
+
 def get_rating_top(limit: int = 20) -> list[dict]:
     """Топ игроков по рейтингу."""
     try:
