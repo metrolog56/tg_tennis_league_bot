@@ -9,7 +9,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 
-from handlers import common, results, rating, admin
+from handlers import common, results, rating, admin, game_requests as game_requests_handler
 from services.scheduler import start_scheduler
 from notify_server import start_notify_server
 
@@ -67,6 +67,7 @@ async def main() -> None:
     dp.include_router(results.router)
     dp.include_router(rating.router)
     dp.include_router(admin.router)
+    dp.include_router(game_requests_handler.router)
 
     start_scheduler(bot)
     if os.getenv("NOTIFY_LISTEN_PORT"):

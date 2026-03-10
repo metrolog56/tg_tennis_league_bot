@@ -14,6 +14,8 @@ import {
   updatePlayerName,
 } from '../api/supabase'
 import MatchInput from '../components/MatchInput'
+import GameRequestModal from '../components/GameRequestModal'
+import GameRequestFeed from '../components/GameRequestFeed'
 import RespectTicker from '../components/RespectTicker'
 import { RESPECT_EMOJI } from '../constants/respect'
 
@@ -26,6 +28,7 @@ export default function Home({ telegramId, playerId: _playerId, onInitialDataLoa
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showMatchInput, setShowMatchInput] = useState(false)
+  const [showGameRequestModal, setShowGameRequestModal] = useState(false)
   const [showNameHint, setShowNameHint] = useState(false)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [profileFirstName, setProfileFirstName] = useState('')
@@ -524,6 +527,11 @@ export default function Home({ telegramId, playerId: _playerId, onInitialDataLoa
         </table>
       </div>
 
+      <GameRequestFeed
+        currentPlayerId={myId}
+        seasonId={season?.id}
+      />
+
       {pendingConfirmation.length > 0 && (
         <div className="mb-4">
           <h2 className="text-base font-bold mb-3">Ожидает подтверждения от вас</h2>
@@ -619,6 +627,13 @@ export default function Home({ telegramId, playerId: _playerId, onInitialDataLoa
         >
           ➕ Внести результат матча
         </button>
+        <button
+          type="button"
+          onClick={() => setShowGameRequestModal(true)}
+          className="w-full py-3 rounded-xl font-medium border border-[var(--tg-theme-hint-color)]/40"
+        >
+          🎾 Ищу игру
+        </button>
       </div>
 
       {showMatchInput && (
@@ -637,6 +652,25 @@ export default function Home({ telegramId, playerId: _playerId, onInitialDataLoa
             }
             if (!division?.id || !player?.id) return
             await refreshDivisionData(division.id, player.id, { updateCache: true })
+          }}
+        />
+      )}
+
+      {showGameRequestModal && (
+        <GameRequestModal
+          currentPlayerId={myId}
+          opponents={opponents}
+          existingMatchesByOpponentId={existingMatchesByOpponentId}
+          seasonId={season?.id}
+          onClose={() => setShowGameRequestModal(false)}
+          onSaved={({ type, opponent, subtype }) => {
+            setShowGameRequestModal(false)
+            if (type === 'challenge' && opponent) {
+              setFlashMessage(`Вызов отправлен игроку ${opponent.name}! Ждём ответа. 🎾`)
+            } else {
+              const label = subtype === 'open_casual' ? 'Просто поиграть' : 'Матч лиги'
+              setFlashMessage(`Открытый запрос «${label}» отправлен — первый принявший станет вашим соперником. 🎾`)
+            }
           }}
         />
       )}

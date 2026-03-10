@@ -38,9 +38,53 @@ async def handle_notify_pending(request: aiohttp.web.Request) -> aiohttp.web.Res
     return aiohttp.web.json_response({"ok": ok})
 
 
+async def handle_notify_game_request(request: aiohttp.web.Request) -> aiohttp.web.Response:
+    secret = _get_secret()
+    if secret and request.headers.get("X-Notify-Secret") != secret:
+        return aiohttp.web.json_response({"error": "unauthorized"}, status=401)
+    try:
+        body = await request.json()
+    except Exception as e:
+        logger.warning("notify-game-request: invalid JSON: %s", e)
+        return aiohttp.web.json_response({"error": "invalid json"}, status=400)
+    request_id = body.get("request_id") if isinstance(body, dict) else None
+    if not request_id:
+        return aiohttp.web.json_response({"error": "request_id required"}, status=400)
+    bot = scheduler._bot
+    if not bot:
+        logger.warning("notify-game-request: bot not ready")
+        return aiohttp.web.json_response({"error": "bot not ready"}, status=503)
+    from handlers.game_requests import send_game_request_notify
+    ok = await send_game_request_notify(str(request_id), bot)
+    return aiohttp.web.json_response({"ok": ok})
+
+
+async def handle_notify_game_request_accepted(request: aiohttp.web.Request) -> aiohttp.web.Response:
+    secret = _get_secret()
+    if secret and request.headers.get("X-Notify-Secret") != secret:
+        return aiohttp.web.json_response({"error": "unauthorized"}, status=401)
+    try:
+        body = await request.json()
+    except Exception as e:
+        logger.warning("notify-game-request-accepted: invalid JSON: %s", e)
+        return aiohttp.web.json_response({"error": "invalid json"}, status=400)
+    request_id = body.get("request_id") if isinstance(body, dict) else None
+    if not request_id:
+        return aiohttp.web.json_response({"error": "request_id required"}, status=400)
+    bot = scheduler._bot
+    if not bot:
+        logger.warning("notify-game-request-accepted: bot not ready")
+        return aiohttp.web.json_response({"error": "bot not ready"}, status=503)
+    from handlers.game_requests import send_game_request_accepted_notify
+    ok = await send_game_request_accepted_notify(str(request_id), bot)
+    return aiohttp.web.json_response({"ok": ok})
+
+
 def create_app() -> aiohttp.web.Application:
     app = aiohttp.web.Application()
     app.router.add_post("/notify-pending-match", handle_notify_pending)
+    app.router.add_post("/notify-game-request", handle_notify_game_request)
+    app.router.add_post("/notify-game-request-accepted", handle_notify_game_request_accepted)
     return app
 
 
