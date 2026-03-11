@@ -372,6 +372,92 @@ async def _daily_check(bot: Optional["Bot"] = None) -> None:
         logger.exception("close_tour failed: %s", e)
 
 
+async def _recalc_active_divisions_standings() -> None:
+    """
+    Периодически пересчитывает totals в division_players по matches
+    для всех дивизионов активного сезона. Использует ту же модель, что и API.
+    """
+    try:
+        client = _get_client()
+        season_r = (
+            client.table("seasons")
+            .select("id")
+            .eq("status", "active")
+            .order("year", desc=True)
+            .order("month", desc=True)
+            .limit(1)
+            .execute()
+        )
+        if not season_r.data:
+            return
+        season_id = season_r.data[0]["id"]
+        divs_r = (
+            client.table("divisions")
+            .select("id")
+            .eq("season_id", season_id)
+            .execute()
+        )
+        for d in divs_r.data or []:
+            division_id = d["id"]
+            # Логика агрегатов совпадает с api/routers/matches._recalc_division_standings
+            matches_r = (
+                client.table("matches")
+                .select("player1_id, player2_id, sets_player1, sets_player2, status")
+                .eq("division_id", division_id)
+                .execute()
+            )
+            matches = matches_r.data or []
+            totals: dict[str, dict[str, int]] = {}
+
+            def ensure_player(pid: str) -> None:
+                if pid not in totals:
+                    totals[pid] = {"points": 0, "sets_won": 0, "sets_lost": 0}
+
+            for m in matches:
+                if m.get("status") != "played":
+                    continue
+                p1 = m.get("player1_id")
+                p2 = m.get("player2_id")
+                s1 = int(m.get("sets_player1") or 0)
+                s2 = int(m.get("sets_player2") or 0)
+                if p1 is None or p2 is None or s1 == s2:
+                    continue
+                ensure_player(p1)
+                ensure_player(p2)
+                totals[p1]["sets_won"] += s1
+                totals[p1]["sets_lost"] += s2
+                totals[p2]["sets_won"] += s2
+                totals[p2]["sets_lost"] += s1
+                if s1 > s2:
+                    totals[p1]["points"] += 2
+                    totals[p2]["points"] += 1
+                else:
+                    totals[p2]["points"] += 2
+                    totals[p1]["points"] += 1
+
+            dp_r = (
+                client.table("division_players")
+                .select("id, player_id")
+                .eq("division_id", division_id)
+                .execute()
+            )
+            for row in dp_r.data or []:
+                pid = row.get("player_id")
+                agg = totals.get(pid)
+                if not agg:
+                    continue
+                client.table("division_players").update(
+                    {
+                        "total_points": agg["points"],
+                        "total_sets_won": agg["sets_won"],
+                        "total_sets_lost": agg["sets_lost"],
+                    }
+                ).eq("id", row["id"]).execute()
+        logger.info("Recalculated standings for active season divisions")
+    except Exception as e:
+        logger.exception("_recalc_active_divisions_standings failed: %s", e)
+
+
 def start_scheduler(bot: Optional["Bot"] = None) -> None:
     global _scheduler, _bot
     _bot = bot
@@ -394,6 +480,11 @@ def start_scheduler(bot: Optional["Bot"] = None) -> None:
         _expire_game_requests,
         CronTrigger(hour=18, minute=1),  # 21:01 Moscow (UTC+3)
         id="expire_game_requests",
+    )
+    _scheduler.add_job(
+        _recalc_active_divisions_standings,
+        CronTrigger(minute="*/15"),
+        id="recalc_active_divisions_standings",
     )
     _scheduler.start()
     logger.info("Scheduler started (daily 23:55, pending_confirm every 2 min, expire_game_requests at 18:01 UTC)")

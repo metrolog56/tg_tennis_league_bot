@@ -429,6 +429,111 @@ def admin_recalc_standings(
     """
     Админ-эндпоинт для пересборки totals в division_players по таблице matches.
     Защищён через API key (optional_api_key) и X-Player-Id; требует авторизованного игрока.
+    Используется как часть канонического пути обработки матчей и фоновой самопроверки.
     """
     _recalc_division_standings(supabase, division_id)
     return {"ok": True}
+
+
+@router.get("/admin/divisions/{division_id}/consistency-report")
+def admin_division_consistency_report(
+    division_id: str,
+    supabase=Depends(get_supabase),
+    current_player_id=Depends(require_current_player_id),
+):
+    """
+    Диагностический отчёт по дивизиону:
+    - сыгранные матчи без двух записей в rating_history;
+    - расхождения totals в division_players относительно таблицы matches.
+    """
+    # Сыгранные матчи и агрегаты из matches
+    matches_r = (
+        supabase.table("matches")
+        .select("id, player1_id, player2_id, sets_player1, sets_player2, status")
+        .eq("division_id", division_id)
+        .execute()
+    )
+    matches = matches_r.data or []
+
+    played_match_ids = [m["id"] for m in matches if m.get("status") == "played"]
+    missing_history = []
+    if played_match_ids:
+        rh_r = (
+            supabase.table("rating_history")
+            .select("match_id")
+            .in_("match_id", played_match_ids)
+            .execute()
+        )
+        hist_counts = {}
+        for row in rh_r.data or []:
+            mid = row.get("match_id")
+            if mid is not None:
+                hist_counts[mid] = hist_counts.get(mid, 0) + 1
+        for mid in played_match_ids:
+            if hist_counts.get(mid) != 2:
+                missing_history.append(
+                    {"match_id": mid, "history_rows": hist_counts.get(mid, 0)}
+                )
+
+    # Агрегаты по matches
+    from collections import defaultdict
+
+    calc_totals = defaultdict(lambda: {"points": 0, "sets_won": 0, "sets_lost": 0})
+    for m in matches:
+        if m.get("status") != "played":
+            continue
+        p1 = m.get("player1_id")
+        p2 = m.get("player2_id")
+        s1 = int(m.get("sets_player1") or 0)
+        s2 = int(m.get("sets_player2") or 0)
+        if not p1 or not p2 or s1 == s2:
+            continue
+        calc_totals[p1]["sets_won"] += s1
+        calc_totals[p1]["sets_lost"] += s2
+        calc_totals[p2]["sets_won"] += s2
+        calc_totals[p2]["sets_lost"] += s1
+        if s1 > s2:
+            calc_totals[p1]["points"] += 2
+            calc_totals[p2]["points"] += 1
+        else:
+            calc_totals[p2]["points"] += 2
+            calc_totals[p1]["points"] += 1
+
+    dp_r = (
+        supabase.table("division_players")
+        .select("id, player_id, total_points, total_sets_won, total_sets_lost")
+        .eq("division_id", division_id)
+        .execute()
+    )
+    dp_rows = dp_r.data or []
+
+    totals_mismatches = []
+    for row in dp_rows:
+        pid = row.get("player_id")
+        agg = calc_totals.get(pid, {"points": 0, "sets_won": 0, "sets_lost": 0})
+        cur_pts = row.get("total_points") or 0
+        cur_sw = row.get("total_sets_won") or 0
+        cur_sl = row.get("total_sets_lost") or 0
+        if (
+            cur_pts != agg["points"]
+            or cur_sw != agg["sets_won"]
+            or cur_sl != agg["sets_lost"]
+        ):
+            totals_mismatches.append(
+                {
+                    "player_id": pid,
+                    "division_player_id": row.get("id"),
+                    "stored": {
+                        "points": cur_pts,
+                        "sets_won": cur_sw,
+                        "sets_lost": cur_sl,
+                    },
+                    "calculated": agg,
+                }
+            )
+
+    return {
+        "division_id": division_id,
+        "missing_rating_history": missing_history,
+        "totals_mismatches": totals_mismatches,
+    }
