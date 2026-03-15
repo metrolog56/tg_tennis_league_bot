@@ -255,6 +255,27 @@ Koyeb позволяет запускать фоновые **Worker**‑серв
 
 После успешного деплоя бот будет работать как фоновый long polling‑процесс, который обрабатывает обновления и планировщик закрытия туров.
 
+### 7.2. Один контейнер (API + бот) — один сервис Koyeb
+
+Чтобы развернуть и API, и бота **одним сервисом** (один слот на Free tier, один URL для пинга, уведомления через localhost):
+
+1. **Сборка:** в корне репозитория есть общий **`Dockerfile`** и **`docker/entrypoint.sh`**. В одном контейнере запускаются uvicorn (API на порту 8000) и бот (health бота на 8001, чтобы не конфликтовать с API).
+
+2. **Создайте сервис в Koyeb**
+   - Source: ваш репозиторий, ветка `main`.
+   - Build: **Dockerfile**, расположение **`Dockerfile`** (корень репо), контекст сборки — корень репозитория.
+   - **Service type:** **Web service** (чтобы был HTTP на порту 8000).
+   - **Port:** 8000 (API и health-check Koyeb по эндпоинту `/health`).
+
+3. **Переменные окружения** (один набор для контейнера):
+   - Бот: `BOT_TOKEN`, `SUPABASE_URL`, `SUPABASE_KEY`, `ADMIN_TELEGRAM_ID`, `WEBAPP_URL`.
+   - Для уведомлений: `NOTIFY_LISTEN_PORT=8765`, `NOTIFY_SECRET` (произвольный общий секрет).
+   - API: `BOT_NOTIFY_URL=http://127.0.0.1:8765`, тот же `NOTIFY_SECRET`; при необходимости `API_KEY`, `CORS_ORIGINS` (URL фронта/Mini App через запятую), `TELEGRAM_BOT_TOKEN`, `JWT_SECRET` (если используете `/auth/telegram`).
+
+4. **Фронт:** в переменных сборки Mini App задайте **`VITE_API_URL`** = публичный URL этого сервиса (например `https://<имя-сервиса>.koyeb.app`), без слэша в конце. Тогда запросы «Ищу игру», подтверждение матчей и т.д. пойдут через API, а API вызовет notify-сервер бота по localhost — уведомления в Telegram будут уходить без отдельного второго сервиса.
+
+5. **Пробуждение (Free tier):** один раз в 5–15 минут пингуйте URL сервиса (например через [cron-job.org](https://cron-job.org)) — разбудится один контейнер, в нём работают и API, и бот.
+
 ---
 
 ## Дополнительно
@@ -284,12 +305,22 @@ python scripts/import_from_sheets.py path/to/export.csv
 
 Официальный клиент Telegram из App Store в симуляторе часто недоступен, поэтому типичный сценарий — тест по прямому URL в Safari. Для отладки веб-страницы на реальном iPhone подключите устройство к Mac и используйте Safari на Mac (меню Develop → выбор устройства).
 
-### Docker (бот)
+### Docker (бот, только бот)
 
 ```bash
 cd bot
 docker build -t tennis-league-bot .
 docker run --env-file .env tennis-league-bot
+```
+
+### Docker (один контейнер: API + бот)
+
+```bash
+# Из корня репозитория
+docker build -t tg-tennis-combined .
+docker run -p 8000:8000 --env-file bot/.env tg-tennis-combined
+# API: http://localhost:8000, /docs, /health. В контейнере также крутится бот.
+# Для уведомлений задайте в env: NOTIFY_LISTEN_PORT=8765, NOTIFY_SECRET, BOT_NOTIFY_URL=http://127.0.0.1:8765
 ```
 
 ### Регламент и рейтинг

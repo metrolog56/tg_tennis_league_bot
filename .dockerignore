@@ -1,0 +1,14 @@
+# Exclude from build context
+.git
+.github
+frontend
+node_modules
+*.md
+.env
+.env.*
+!.env.example
+*.pyc
+__pycache__
+.pytest_cache
+.cursor
+*.plan.md
