@@ -4,8 +4,10 @@
 """
 import asyncio
 import logging
+import os
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
+from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 
@@ -56,8 +58,12 @@ async def main() -> None:
         addresses = ", ".join(str(sock.getsockname()) for sock in server.sockets or [])
         logger.info("Health server listening on %s", addresses)
 
+    # Longer timeout for Telegram API (helps on slow networks / after instance wake on Koyeb)
+    telegram_timeout = float(os.getenv("TELEGRAM_REQUEST_TIMEOUT", "120"))
+    session = AiohttpSession(timeout=telegram_timeout)
     bot = Bot(
         token=token,
+        session=session,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
     storage = MemoryStorage()
