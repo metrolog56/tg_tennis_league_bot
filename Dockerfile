@@ -3,9 +3,10 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Dependencies: API and bot (merge to avoid conflicts)
-COPY api/requirements.txt bot/requirements.txt ./
-RUN pip install --no-cache-dir -r api/requirements.txt -r bot/requirements.txt
+# Dependencies: API and bot (copy under distinct names so both are kept)
+COPY api/requirements.txt ./api-requirements.txt
+COPY bot/requirements.txt ./bot-requirements.txt
+RUN pip install --no-cache-dir -r api-requirements.txt -r bot-requirements.txt
 
 # Application code
 COPY api ./api
