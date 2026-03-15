@@ -43,6 +43,7 @@ export default function Home({ telegramId, playerId: _playerId, onInitialDataLoa
   const [flashMessage, setFlashMessage] = useState('')
   const [confirmAction, setConfirmAction] = useState(null)
   const [resultCard, setResultCard] = useState(null)
+  const [refreshing, setRefreshing] = useState(false)
 
   async function refreshDivisionData(divisionId, playerId, {
     updateCache = false,
@@ -72,6 +73,7 @@ export default function Home({ telegramId, playerId: _playerId, onInitialDataLoa
             standings: st || [],
             matchesMatrix: mat,
             pendingConfirmation: pending || [],
+            cachedAt: Date.now(),
           }))
         }
       } catch {
@@ -86,19 +88,24 @@ export default function Home({ telegramId, playerId: _playerId, onInitialDataLoa
       return
     }
     let cancelled = false
-    // Попробуем показать последний успешный снэпшот сразу
+    // Показать кэш только если он свежий (не старше 45 с), иначе не подставлять standings/matrix
+    const CACHE_TTL_MS = 45000
     try {
       const raw = window.localStorage.getItem('homeCacheV1')
       if (raw) {
         const cache = JSON.parse(raw)
         if (cache && cache.telegramId === telegramId) {
+          const cacheAge = cache.cachedAt != null ? Date.now() - cache.cachedAt : Infinity
+          const useCacheForStandings = cacheAge <= CACHE_TTL_MS
           setPlayer(cache.player || null)
           setDivisionData(cache.divisionData || null)
-          setStandings(cache.standings || [])
-          setMatchesMatrix(cache.matchesMatrix || null)
-          setPendingConfirmation(cache.pendingConfirmation || [])
-          setLoading(false)
-          if (onInitialDataLoaded) onInitialDataLoaded()
+          if (useCacheForStandings) {
+            setStandings(cache.standings || [])
+            setMatchesMatrix(cache.matchesMatrix || null)
+            setPendingConfirmation(cache.pendingConfirmation || [])
+            setLoading(false)
+            if (onInitialDataLoaded) onInitialDataLoaded()
+          }
         }
       }
     } catch {
@@ -168,13 +175,16 @@ export default function Home({ telegramId, playerId: _playerId, onInitialDataLoa
     refreshDivisionData(divisionData.division.id, player.id, { updateCache: true })
   }, [location.state?.message, location.pathname, navigate, player?.id, divisionData?.division?.id])
 
-  // Realtime: при изменении матчей дивизиона обновляем таблицу и блок «Ожидает подтверждения»
+  // Realtime: при изменении матчей и очков дивизиона обновляем таблицу и блок «Ожидает подтверждения»
   useEffect(() => {
     const divisionId = divisionData?.division?.id
     const playerId = player?.id
     if (!divisionId || !playerId || loading) return
+    const onPayload = () => {
+      refreshDivisionData(divisionId, playerId, { updateCache: true })
+    }
     const channel = supabase
-      .channel(`matches-division-${divisionId}`)
+      .channel(`home-division-${divisionId}`)
       .on(
         'postgres_changes',
         {
@@ -183,9 +193,17 @@ export default function Home({ telegramId, playerId: _playerId, onInitialDataLoa
           table: 'matches',
           filter: `division_id=eq.${divisionId}`,
         },
-        () => {
-          refreshDivisionData(divisionId, playerId, { updateCache: true })
-        }
+        onPayload
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'division_players',
+          filter: `division_id=eq.${divisionId}`,
+        },
+        onPayload
       )
       .subscribe()
     return () => {
@@ -487,9 +505,27 @@ export default function Home({ telegramId, playerId: _playerId, onInitialDataLoa
         </Dialog>
       )}
 
-      <p className="text-sm text-[var(--tg-theme-hint-color)] mb-4">
-        {season.name} · Дивизион {division.number}
-      </p>
+      <div className="flex items-center justify-between gap-2 mb-4">
+        <p className="text-sm text-[var(--tg-theme-hint-color)]">
+          {season.name} · Дивизион {division.number}
+        </p>
+        <button
+          type="button"
+          disabled={refreshing}
+          onClick={async () => {
+            if (!division?.id || !player?.id) return
+            setRefreshing(true)
+            try {
+              await refreshDivisionData(division.id, player.id, { updateCache: true })
+            } finally {
+              setRefreshing(false)
+            }
+          }}
+          className="text-sm py-1.5 px-3 rounded-lg border border-[var(--tg-theme-hint-color)]/40 disabled:opacity-50"
+        >
+          {refreshing ? '…' : 'Обновить'}
+        </button>
+      </div>
 
       <div className="glass glass-table-wrap rounded-lg overflow-hidden mb-4">
         <table className="w-full text-sm">
@@ -689,7 +725,7 @@ export default function Home({ telegramId, playerId: _playerId, onInitialDataLoa
           onClick={() => setShowGameRequestModal(true)}
           className="w-full py-3 rounded-xl font-medium border border-[var(--tg-theme-hint-color)]/40"
         >
-          🎾 Ищу игру
+          Ищу игру
         </button>
       </div>
 
@@ -716,18 +752,12 @@ export default function Home({ telegramId, playerId: _playerId, onInitialDataLoa
       {showGameRequestModal && (
         <GameRequestModal
           currentPlayerId={myId}
-          opponents={opponents}
-          existingMatchesByOpponentId={existingMatchesByOpponentId}
           seasonId={season?.id}
           onClose={() => setShowGameRequestModal(false)}
-          onSaved={({ type, opponent, subtype }) => {
+          onSaved={({ subtype }) => {
             setShowGameRequestModal(false)
-            if (type === 'challenge' && opponent) {
-              setFlashMessage(`Вызов отправлен игроку ${opponent.name}! Ждём ответа. 🎾`)
-            } else {
-              const label = subtype === 'open_casual' ? 'Просто поиграть' : 'Матч лиги'
-              setFlashMessage(`Открытый запрос «${label}» отправлен — первый принявший станет вашим соперником. 🎾`)
-            }
+            const label = subtype === 'open_casual' ? 'Просто поиграть' : 'Матч лиги'
+            setFlashMessage(`Открытый запрос «${label}» отправлен — первый принявший станет вашим соперником.`)
           }}
         />
       )}
