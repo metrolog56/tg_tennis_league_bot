@@ -44,6 +44,19 @@ def _trigger_game_request_notify(request_id: str) -> None:
         pass
 
 
+def _trigger_open_game_request_notify(request_id: str) -> None:
+    url = (os.getenv("BOT_NOTIFY_URL") or "").strip().rstrip("/")
+    if not url:
+        return
+    secret = (os.getenv("NOTIFY_SECRET") or "").strip()
+    hdrs = {"X-Notify-Secret": secret} if secret else {}
+    try:
+        with httpx.Client(timeout=5.0) as client:
+            client.post(f"{url}/notify-open-game-request", json={"request_id": request_id}, headers=hdrs)
+    except Exception:
+        pass
+
+
 def _trigger_game_request_accepted_notify(request_id: str) -> None:
     url = (os.getenv("BOT_NOTIFY_URL") or "").strip().rstrip("/")
     if not url:
@@ -138,6 +151,8 @@ def create_game_request(
     row = r.data[0]
     if body.type == "division_challenge" and body.target_player_id:
         _trigger_game_request_notify(row["id"])
+    elif body.type in ("open_league", "open_casual"):
+        _trigger_open_game_request_notify(row["id"])
     return row
 
 

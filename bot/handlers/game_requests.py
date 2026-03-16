@@ -268,3 +268,90 @@ async def send_game_request_accepted_notify(request_id: str, bot: Optional["Bot"
     except Exception as e:
         logger.exception("send_game_request_accepted_notify failed for %s: %s", request_id, e)
         return False
+
+
+async def send_open_game_request_notify(request_id: str, bot: Optional["Bot"]) -> bool:
+    """Broadcast open game request (open_league/open_casual) to all players with telegram_id except requester."""
+    if not bot:
+        return False
+    webapp_url = (os.getenv("WEBAPP_URL") or "").strip().rstrip("/")
+    try:
+        client = _get_client()
+        r = (
+            client.table("game_requests")
+            .select("requester_id, type, status, notification_sent_at")
+            .eq("id", request_id)
+            .execute()
+        )
+        if not r.data:
+            return False
+        req = r.data[0]
+        if req.get("status") != "pending":
+            return True
+        if req.get("notification_sent_at"):
+            return True
+        if req.get("type") not in ("open_league", "open_casual"):
+            return False
+
+        requester_id = req.get("requester_id")
+        if not requester_id:
+            return False
+
+        players_r = (
+            client.table("players")
+            .select("id, name, telegram_id")
+            .neq("id", requester_id)
+            .not_.is_("telegram_id", "null")
+            .execute()
+        )
+        players = players_r.data or []
+        if not players:
+            return False
+
+        # Map requester for name, fall back to first match in players list if missing
+        requester = next((p for p in players if p["id"] == requester_id), None)
+        if not requester:
+            # fetch explicitly if not in list
+            r_req = (
+                client.table("players")
+                .select("id, name, telegram_id")
+                .eq("id", requester_id)
+                .execute()
+            )
+            requester = (r_req.data or [{}])[0]
+
+        author_name = requester.get("name", "Игрок")
+        is_casual = req.get("type") == "open_casual"
+        game_label = "Просто поиграть" if is_casual else "Матч лиги"
+
+        text = (
+            f"🎾 <b>{author_name}</b> ищет соперника ({game_label}).\n"
+            "Откройте мини‑приложение или нажмите кнопку, чтобы откликнуться."
+        )
+
+        buttons: list[list[InlineKeyboardButton]] = [
+            [InlineKeyboardButton(text="Откликнуться 🤝", callback_data=f"gamereq:accept:{request_id}")],
+        ]
+        if webapp_url:
+            buttons.append([InlineKeyboardButton(text="Открыть приложение", url=webapp_url)])
+        kb = InlineKeyboardMarkup(inline_keyboard=buttons)
+
+        sent_any = False
+        for p in players:
+            tid = p.get("telegram_id")
+            if not tid:
+                continue
+            try:
+                await bot.send_message(int(tid), text, reply_markup=kb)
+                sent_any = True
+            except Exception:
+                continue
+
+        if sent_any:
+            now_iso = datetime.now(timezone.utc).isoformat()
+            client.table("game_requests").update({"notification_sent_at": now_iso}).eq("id", request_id).execute()
+            logger.info("Sent open game request notify for %s", request_id)
+        return sent_any
+    except Exception as e:
+        logger.exception("send_open_game_request_notify failed for %s: %s", request_id, e)
+        return False
