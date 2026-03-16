@@ -1,0 +1,383 @@
+{
+	"info": {
+		"_postman_id": "tennis-league-api-001",
+		"name": "Tennis League API",
+		"description": "REST API for Лига настольного тенниса. Auth: X-API-Key (optional if API_KEY set in env); identity: Authorization: Bearer &lt;JWT&gt; or X-Player-Id.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{ "key": "baseUrl", "value": "http://localhost:8000" },
+		{ "key": "apiKey", "value": "" },
+		{ "key": "playerId", "value": "" },
+		{ "key": "access_token", "value": "" },
+		{ "key": "divisionId", "value": "" },
+		{ "key": "seasonId", "value": "" },
+		{ "key": "matchId", "value": "" },
+		{ "key": "requestId", "value": "" }
+	],
+	"auth": {
+		"type": "noauth"
+	},
+	"item": [
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Root",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "X-API-Key", "value": "{{apiKey}}", "type": "text" }
+						],
+						"url": "{{baseUrl}}/"
+					}
+				},
+				{
+					"name": "Health",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "X-API-Key", "value": "{{apiKey}}", "type": "text" }
+						],
+						"url": "{{baseUrl}}/health"
+					}
+				},
+				{
+					"name": "Auth Telegram",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "X-API-Key", "value": "{{apiKey}}", "type": "text" },
+							{ "key": "Content-Type", "value": "application/json", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"init_data\": \"query_id=...&user=...&auth_date=...&hash=...\"\n}"
+						},
+						"url": "{{baseUrl}}/auth/telegram"
+					}
+				}
+			]
+		},
+		{
+			"name": "Players",
+			"item": [
+				{
+					"name": "Get player by telegram_id",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "X-API-Key", "value": "{{apiKey}}", "type": "text" },
+							{ "key": "X-Player-Id", "value": "{{playerId}}", "type": "text" },
+							{ "key": "Authorization", "value": "Bearer {{access_token}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/players?telegram_id=",
+							"host": ["{{baseUrl}}"],
+							"path": ["players"],
+							"query": [{ "key": "telegram_id", "value": "" }]
+						}
+					}
+				},
+				{
+					"name": "Get rating top",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "X-API-Key", "value": "{{apiKey}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/players/rating?limit=50",
+							"host": ["{{baseUrl}}"],
+							"path": ["players", "rating"],
+							"query": [{ "key": "limit", "value": "50" }]
+						}
+					}
+				},
+				{
+					"name": "Update player name",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{ "key": "X-API-Key", "value": "{{apiKey}}", "type": "text" },
+							{ "key": "X-Player-Id", "value": "{{playerId}}", "type": "text" },
+							{ "key": "Authorization", "value": "Bearer {{access_token}}", "type": "text" },
+							{ "key": "Content-Type", "value": "application/json", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Player Name\"\n}"
+						},
+						"url": "{{baseUrl}}/players/{{playerId}}"
+					}
+				}
+			]
+		},
+		{
+			"name": "Seasons",
+			"item": [
+				{
+					"name": "Get current season",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "X-API-Key", "value": "{{apiKey}}", "type": "text" }
+						],
+						"url": "{{baseUrl}}/seasons/current"
+					}
+				},
+				{
+					"name": "Get divisions by season",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "X-API-Key", "value": "{{apiKey}}", "type": "text" }
+						],
+						"url": "{{baseUrl}}/seasons/{{seasonId}}/divisions"
+					}
+				}
+			]
+		},
+		{
+			"name": "Divisions",
+			"item": [
+				{
+					"name": "Get division by id",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "X-API-Key", "value": "{{apiKey}}", "type": "text" }
+						],
+						"url": "{{baseUrl}}/divisions/{{divisionId}}"
+					}
+				},
+				{
+					"name": "Get division standings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "X-API-Key", "value": "{{apiKey}}", "type": "text" }
+						],
+						"url": "{{baseUrl}}/divisions/{{divisionId}}/standings"
+					}
+				},
+				{
+					"name": "Get division matches",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "X-API-Key", "value": "{{apiKey}}", "type": "text" }
+						],
+						"url": "{{baseUrl}}/divisions/{{divisionId}}/matches"
+					}
+				}
+			]
+		},
+		{
+			"name": "Matches",
+			"item": [
+				{
+					"name": "Get pending confirmation",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "X-API-Key", "value": "{{apiKey}}", "type": "text" },
+							{ "key": "X-Player-Id", "value": "{{playerId}}", "type": "text" },
+							{ "key": "Authorization", "value": "Bearer {{access_token}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/matches/pending?player_id={{playerId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["matches", "pending"],
+							"query": [{ "key": "player_id", "value": "{{playerId}}" }]
+						}
+					}
+				},
+				{
+					"name": "Get match by id",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "X-API-Key", "value": "{{apiKey}}", "type": "text" },
+							{ "key": "X-Player-Id", "value": "{{playerId}}", "type": "text" },
+							{ "key": "Authorization", "value": "Bearer {{access_token}}", "type": "text" }
+						],
+						"url": "{{baseUrl}}/matches/{{matchId}}"
+					}
+				},
+				{
+					"name": "Submit for confirmation",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "X-API-Key", "value": "{{apiKey}}", "type": "text" },
+							{ "key": "X-Player-Id", "value": "{{playerId}}", "type": "text" },
+							{ "key": "Authorization", "value": "Bearer {{access_token}}", "type": "text" },
+							{ "key": "Content-Type", "value": "application/json", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"division_id\": \"{{divisionId}}\",\n  \"player1_id\": \"\",\n  \"player2_id\": \"\",\n  \"sets_player1\": 2,\n  \"sets_player2\": 1,\n  \"submitted_by\": \"{{playerId}}\"\n}"
+						},
+						"url": "{{baseUrl}}/matches/submit-for-confirmation"
+					}
+				},
+				{
+					"name": "Notify pending match",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "X-API-Key", "value": "{{apiKey}}", "type": "text" },
+							{ "key": "X-Player-Id", "value": "{{playerId}}", "type": "text" },
+							{ "key": "Authorization", "value": "Bearer {{access_token}}", "type": "text" }
+						],
+						"url": "{{baseUrl}}/matches/{{matchId}}/notify-pending"
+					}
+				},
+				{
+					"name": "Confirm match",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "X-API-Key", "value": "{{apiKey}}", "type": "text" },
+							{ "key": "X-Player-Id", "value": "{{playerId}}", "type": "text" },
+							{ "key": "Authorization", "value": "Bearer {{access_token}}", "type": "text" },
+							{ "key": "Content-Type", "value": "application/json", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"confirmed_by_player_id\": \"{{playerId}}\"\n}"
+						},
+						"url": "{{baseUrl}}/matches/{{matchId}}/confirm"
+					}
+				},
+				{
+					"name": "Reject match",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "X-API-Key", "value": "{{apiKey}}", "type": "text" },
+							{ "key": "X-Player-Id", "value": "{{playerId}}", "type": "text" },
+							{ "key": "Authorization", "value": "Bearer {{access_token}}", "type": "text" },
+							{ "key": "Content-Type", "value": "application/json", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rejected_by_player_id\": \"{{playerId}}\"\n}"
+						},
+						"url": "{{baseUrl}}/matches/{{matchId}}/reject"
+					}
+				},
+				{
+					"name": "Admin recalc standings",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "X-API-Key", "value": "{{apiKey}}", "type": "text" },
+							{ "key": "X-Player-Id", "value": "{{playerId}}", "type": "text" },
+							{ "key": "Authorization", "value": "Bearer {{access_token}}", "type": "text" }
+						],
+						"url": "{{baseUrl}}/matches/admin/divisions/{{divisionId}}/recalc-standings"
+					}
+				},
+				{
+					"name": "Admin consistency report",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "X-API-Key", "value": "{{apiKey}}", "type": "text" },
+							{ "key": "X-Player-Id", "value": "{{playerId}}", "type": "text" },
+							{ "key": "Authorization", "value": "Bearer {{access_token}}", "type": "text" }
+						],
+						"url": "{{baseUrl}}/matches/admin/divisions/{{divisionId}}/consistency-report"
+					}
+				}
+			]
+		},
+		{
+			"name": "Game requests",
+			"item": [
+				{
+					"name": "Create game request",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "X-API-Key", "value": "{{apiKey}}", "type": "text" },
+							{ "key": "X-Player-Id", "value": "{{playerId}}", "type": "text" },
+							{ "key": "Authorization", "value": "Bearer {{access_token}}", "type": "text" },
+							{ "key": "Content-Type", "value": "application/json", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"type\": \"division_challenge\",\n  \"target_player_id\": \"\"\n}"
+						},
+						"url": "{{baseUrl}}/game-requests"
+					}
+				},
+				{
+					"name": "List game requests",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "X-API-Key", "value": "{{apiKey}}", "type": "text" },
+							{ "key": "X-Player-Id", "value": "{{playerId}}", "type": "text" },
+							{ "key": "Authorization", "value": "Bearer {{access_token}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/game-requests?season_id=",
+							"host": ["{{baseUrl}}"],
+							"path": ["game-requests"],
+							"query": [{ "key": "season_id", "value": "{{seasonId}}" }]
+						}
+					}
+				},
+				{
+					"name": "Accept game request",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "X-API-Key", "value": "{{apiKey}}", "type": "text" },
+							{ "key": "X-Player-Id", "value": "{{playerId}}", "type": "text" },
+							{ "key": "Authorization", "value": "Bearer {{access_token}}", "type": "text" }
+						],
+						"url": "{{baseUrl}}/game-requests/{{requestId}}/accept"
+					}
+				},
+				{
+					"name": "Cancel game request",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "X-API-Key", "value": "{{apiKey}}", "type": "text" },
+							{ "key": "X-Player-Id", "value": "{{playerId}}", "type": "text" },
+							{ "key": "Authorization", "value": "Bearer {{access_token}}", "type": "text" }
+						],
+						"url": "{{baseUrl}}/game-requests/{{requestId}}/cancel"
+					}
+				}
+			]
+		},
+		{
+			"name": "Client sessions",
+			"item": [
+				{
+					"name": "Create client session",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "X-API-Key", "value": "{{apiKey}}", "type": "text" },
+							{ "key": "X-Player-Id", "value": "{{playerId}}", "type": "text" },
+							{ "key": "Authorization", "value": "Bearer {{access_token}}", "type": "text" },
+							{ "key": "Content-Type", "value": "application/json", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"device_type\": \"desktop\",\n  \"player_id\": \"{{playerId}}\"\n}"
+						},
+						"url": "{{baseUrl}}/client-sessions"
+					}
+				}
+			]
+		}
+	]
+}
