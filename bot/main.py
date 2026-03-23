@@ -5,10 +5,12 @@
 import asyncio
 import logging
 import os
+import aiohttp
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.enums import ParseMode
+from aiogram.exceptions import TelegramNetworkError
 from aiogram.fsm.storage.memory import MemoryStorage
 
 from handlers import common, results, rating, admin, game_requests as game_requests_handler
@@ -80,7 +82,33 @@ async def main() -> None:
         await start_notify_server()
     await _start_health_server()
     logger.info("Bot starting...")
-    await dp.start_polling(bot)
+    retry_delays = [2, 5, 10, 20, 30]
+    retry_idx = 0
+    while True:
+        try:
+            await dp.start_polling(bot)
+            logger.info("Polling stopped gracefully")
+            break
+        except (TelegramNetworkError, asyncio.TimeoutError, aiohttp.ClientError) as e:
+            delay = retry_delays[min(retry_idx, len(retry_delays) - 1)]
+            retry_idx += 1
+            logger.warning(
+                "Telegram network error during polling: %s. Restarting polling in %ss",
+                e,
+                delay,
+            )
+            await asyncio.sleep(delay)
+        except (KeyboardInterrupt, asyncio.CancelledError):
+            logger.info("Polling interrupted, shutting down")
+            break
+        except Exception:
+            delay = retry_delays[min(retry_idx, len(retry_delays) - 1)]
+            retry_idx += 1
+            logger.exception(
+                "Unexpected polling error. Restarting polling in %ss",
+                delay,
+            )
+            await asyncio.sleep(delay)
 
 
 if __name__ == "__main__":
