@@ -31,7 +31,7 @@ def create_client_session(
     supabase=Depends(get_supabase),
     current_player_id=Depends(get_current_player_id),
 ):
-    """Record a client session (analytics). Uses X-Player-Id if sent, else body.player_id."""
+    """Record a client session (analytics). Uses authenticated player_id from Bearer token only."""
     row = {
         "device_type": body.device_type,
         "browser": body.browser,
@@ -39,7 +39,7 @@ def create_client_session(
         "resolution": body.resolution,
         "language": body.language,
         "platform": body.platform,
-        "player_id": current_player_id or body.player_id,
+        "player_id": current_player_id,
     }
     r = supabase.table("client_sessions").insert(row).select("id").execute()
     if r.data and len(r.data) > 0:

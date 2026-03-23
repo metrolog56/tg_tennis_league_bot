@@ -4,6 +4,7 @@ import { Dialog } from '@headlessui/react'
 import {
   supabase,
   getPlayerByTelegramId,
+  getPlayerById,
   getCurrentSeason,
   getPlayerDivision,
   getDivisionStandings,
@@ -83,7 +84,7 @@ export default function Home({ telegramId, playerId: _playerId, onInitialDataLoa
   }
 
   useEffect(() => {
-    if (!telegramId) {
+    if (!telegramId && !_playerId) {
       setLoading(false)
       return
     }
@@ -94,7 +95,7 @@ export default function Home({ telegramId, playerId: _playerId, onInitialDataLoa
       const raw = window.localStorage.getItem('homeCacheV1')
       if (raw) {
         const cache = JSON.parse(raw)
-        if (cache && cache.telegramId === telegramId) {
+        if (cache && cache.telegramId === (telegramId || _playerId)) {
           const cacheAge = cache.cachedAt != null ? Date.now() - cache.cachedAt : Infinity
           const useCacheForStandings = cacheAge <= CACHE_TTL_MS
           setPlayer(cache.player || null)
@@ -114,7 +115,7 @@ export default function Home({ telegramId, playerId: _playerId, onInitialDataLoa
     async function load() {
       try {
         const [p, season] = await Promise.all([
-          getPlayerByTelegramId(telegramId),
+          telegramId ? getPlayerByTelegramId(telegramId) : getPlayerById(_playerId),
           getCurrentSeason(),
         ])
         if (cancelled) return
@@ -133,7 +134,7 @@ export default function Home({ telegramId, playerId: _playerId, onInitialDataLoa
             updateCache: true,
             playerSnapshot: p,
             divisionSnapshot: divData,
-            telegramIdSnapshot: telegramId,
+            telegramIdSnapshot: telegramId || _playerId,
           })
           if (!cancelled) {
             setLoading(false)
@@ -153,7 +154,7 @@ export default function Home({ telegramId, playerId: _playerId, onInitialDataLoa
     }
     load()
     return () => { cancelled = true }
-  }, [telegramId])
+  }, [telegramId, _playerId])
 
   useEffect(() => {
     if (!player?.id) return
@@ -225,7 +226,7 @@ export default function Home({ telegramId, playerId: _playerId, onInitialDataLoa
     }
   }, [divisionData?.division?.id, player?.id])
 
-  if (!telegramId) {
+  if (!telegramId && !_playerId) {
     const botName = import.meta.env.VITE_TELEGRAM_BOT_NAME || ''
     const telegramLink = botName ? `https://t.me/${botName.replace('@', '')}` : null
     return (

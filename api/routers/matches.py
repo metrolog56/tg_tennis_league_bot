@@ -190,7 +190,7 @@ class SubmitForConfirmationBody(BaseModel):
     player2_id: str
     sets_player1: int
     sets_player2: int
-    submitted_by: str
+    submitted_by: Optional[str] = None
 
 
 class ConfirmRejectBody(BaseModel):
@@ -200,15 +200,13 @@ class ConfirmRejectBody(BaseModel):
 
 @router.get("/pending")
 def get_pending_confirmation(
-    player_id: str,
     supabase=Depends(get_supabase),
     current_player_id=Depends(require_current_player_id),
 ):
     """Matches with status pending_confirm where the given player is the opponent (must confirm).
-    Only returns pending matches for the current caller (player_id must equal X-Player-Id).
+    Only returns pending matches for the current caller (from Bearer token).
     """
-    if current_player_id != player_id:
-        raise HTTPException(status_code=403, detail="Access denied: only your own pending matches")
+    player_id = current_player_id
     r = (
         supabase.table("matches")
         .select("id, division_id, player1_id, player2_id, sets_player1, sets_player2, submitted_by")
@@ -256,10 +254,8 @@ def submit_for_confirmation(
     current_player_id=Depends(require_current_player_id),
 ):
     """Submit result for opponent confirmation; does not update ratings.
-    submitted_by must match X-Player-Id (caller identity).
+    submitted_by is resolved from Bearer token and cannot be spoofed via request body.
     """
-    if current_player_id != body.submitted_by:
-        raise HTTPException(status_code=403, detail="Access denied: submitted_by must be the current player")
     existing = None
     for p1, p2 in [(body.player1_id, body.player2_id), (body.player2_id, body.player1_id)]:
         r = (
@@ -283,7 +279,7 @@ def submit_for_confirmation(
         "sets_player1": body.sets_player1,
         "sets_player2": body.sets_player2,
         "status": "pending_confirm",
-        "submitted_by": body.submitted_by,
+        "submitted_by": current_player_id,
         "played_at": None,
     }
     if existing:
@@ -361,13 +357,9 @@ def confirm_match(
     current_player_id=Depends(require_current_player_id),
 ):
     """Confirm match result (opponent). Applies rating and division stats.
-    confirmed_by_player_id must match X-Player-Id (caller identity).
+    Caller identity is resolved from Bearer token.
     """
-    confirmed_by = body.confirmed_by_player_id
-    if not confirmed_by:
-        raise HTTPException(status_code=422, detail="confirmed_by_player_id required")
-    if current_player_id != confirmed_by:
-        raise HTTPException(status_code=403, detail="Access denied: confirmed_by_player_id must be the current player")
+    confirmed_by = current_player_id
     r = supabase.table("matches").select("*").eq("id", match_id).execute()
     if not r.data or len(r.data) == 0:
         raise HTTPException(status_code=404, detail="Матч не найден или уже обработан.")
@@ -393,13 +385,9 @@ def reject_match(
     current_player_id=Depends(require_current_player_id),
 ):
     """Reject match result (opponent). Resets match to pending.
-    rejected_by_player_id must match X-Player-Id (caller identity).
+    Caller identity is resolved from Bearer token.
     """
-    rejected_by = body.rejected_by_player_id
-    if not rejected_by:
-        raise HTTPException(status_code=422, detail="rejected_by_player_id required")
-    if current_player_id != rejected_by:
-        raise HTTPException(status_code=403, detail="Access denied: rejected_by_player_id must be the current player")
+    rejected_by = current_player_id
     r = supabase.table("matches").select("*").eq("id", match_id).execute()
     if not r.data or len(r.data) == 0:
         raise HTTPException(status_code=404, detail="Матч не найден или уже обработан.")

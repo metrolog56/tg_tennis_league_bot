@@ -7,6 +7,7 @@ const Rules = lazy(() => import('./pages/Rules'))
 import { useTelegram } from './hooks/useTelegram'
 import { useAuth } from './hooks/useAuth'
 import { getCurrentSeason, saveClientSession } from './api/supabase'
+import { requestMagicLink, signOutWeb } from './auth/telegramAuth'
 import { collectClientData } from './analytics/clientData'
 import { initYandexMetrika, hitYandexMetrika } from './analytics/yandex'
 
@@ -85,7 +86,7 @@ function MetrikaTracker({ homeReady }) {
 
 function App() {
   const { user } = useTelegram()
-  const { playerId: authPlayerId, telegramId: authTelegramId } = useAuth()
+  const { ready: authReady, playerId: authPlayerId, telegramId: authTelegramId, authType } = useAuth()
   const telegramId = authTelegramId ?? user?.id ?? null
   const playerId = authPlayerId ?? null
   const sessionSent = useRef(false)
@@ -124,11 +125,93 @@ function App() {
     return () => clearTimeout(timeout)
   }, [homeReady, telegramId, playerId])
 
+  const [email, setEmail] = useState('')
+  const [emailStatus, setEmailStatus] = useState('')
+  const [sendingMagicLink, setSendingMagicLink] = useState(false)
+
+  const isTelegramRuntime = Boolean(window.Telegram?.WebApp?.initData)
+  const isAuthenticated = Boolean(playerId)
+
+  if (!authReady) {
+    return (
+      <div className="p-4 min-w-[320px] max-w-lg mx-auto">
+        <p className="text-sm text-[var(--tg-theme-hint-color)]">Проверяем авторизацию...</p>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated && !isTelegramRuntime) {
+    const botName = import.meta.env.VITE_TELEGRAM_BOT_NAME || ''
+    const telegramLink = botName ? `https://t.me/${botName.replace('@', '')}` : null
+    return (
+      <div className="p-4 min-w-[320px] max-w-lg mx-auto space-y-3">
+        <h1 className="text-xl font-bold">Вход в лигу</h1>
+        <p className="text-sm text-[var(--tg-theme-hint-color)]">
+          Основной вход через веб: укажите email и получите магическую ссылку.
+        </p>
+        <form
+          className="space-y-2"
+          onSubmit={async (e) => {
+            e.preventDefault()
+            setEmailStatus('')
+            setSendingMagicLink(true)
+            try {
+              const { error } = await requestMagicLink(email)
+              if (error) setEmailStatus(error)
+              else setEmailStatus('Ссылка отправлена. Откройте письмо и вернитесь в приложение.')
+            } finally {
+              setSendingMagicLink(false)
+            }
+          }}
+        >
+          <input
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            className="w-full px-3 py-2 rounded-xl border border-[var(--tg-theme-hint-color)]/40 bg-[var(--tg-theme-bg-color)]"
+          />
+          <button
+            type="submit"
+            disabled={sendingMagicLink}
+            className="w-full py-3 rounded-xl font-medium text-white disabled:opacity-50"
+            style={{ background: 'var(--tg-theme-button-color)', color: 'var(--tg-theme-button-text-color)' }}
+          >
+            {sendingMagicLink ? 'Отправка...' : 'Войти по ссылке'}
+          </button>
+        </form>
+        {emailStatus ? <p className="text-sm">{emailStatus}</p> : null}
+        {telegramLink ? (
+          <a
+            href={telegramLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block py-2 px-4 rounded-xl font-medium border border-[var(--tg-theme-hint-color)]/40"
+          >
+            Открыть в Telegram
+          </a>
+        ) : null}
+      </div>
+    )
+  }
+
   return (
     <HashRouter>
       <>
         <MetrikaTracker homeReady={homeReady} />
         <Layout>
+          {authType === 'web' ? (
+            <div className="px-4 pt-2 max-w-lg mx-auto w-full flex justify-end">
+              <button
+                type="button"
+                onClick={() => signOutWeb().then(() => window.location.reload())}
+                className="text-xs py-1 px-2 rounded-lg border border-[var(--tg-theme-hint-color)]/40"
+              >
+                Выйти
+              </button>
+            </div>
+          ) : null}
           <Suspense
             fallback={
               <div className="p-4 min-w-[320px] max-w-lg mx-auto">
