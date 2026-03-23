@@ -141,18 +141,13 @@ def auth_web(
     if r.data and len(r.data) > 0:
         player_id = r.data[0].get("id")
     else:
-        created = (
-            supabase.table("players")
-            .insert({
-                "auth_user_id": auth_user_id,
-                "email": email,
-                "name": display_name,
-                "rating": 100.0,
-                "is_active": True,
-            })
-            .select("id")
-            .execute()
-        )
+        created = supabase.table("players").insert({
+            "auth_user_id": auth_user_id,
+            "email": email,
+            "name": display_name,
+            "rating": 100.0,
+            "is_active": True,
+        }).execute()
         if created.data and len(created.data) > 0:
             player_id = created.data[0].get("id")
 

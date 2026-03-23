@@ -76,7 +76,7 @@ def test_auth_web_200_returns_token_and_player_id(client, env_auth):
     )
     mock_supabase.auth.get_user.return_value = SimpleNamespace(user=mock_user)
     mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
-    mock_supabase.table.return_value.insert.return_value.select.return_value.execute.return_value = MagicMock(
+    mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(
         data=[{"id": "22222222-2222-2222-2222-222222222222"}]
     )
     for key in list(sys.modules.keys()):
