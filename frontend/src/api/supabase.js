@@ -11,6 +11,11 @@ if (!url || !key) {
 
 export const supabase = createClient(url || '', key || '')
 
+function isNetworkFetchError(error) {
+  const msg = String(error?.message || '').toLowerCase()
+  return msg.includes('failed to fetch') || msg.includes('load failed') || msg.includes('networkerror')
+}
+
 export async function saveClientSession(clientData, playerId = null, platform = null) {
   if (!import.meta.env.VITE_API_URL) {
     const e = new Error('VITE_API_URL not set (client sessions go through API)')
@@ -234,7 +239,13 @@ export async function getPendingConfirmationForPlayer(playerId) {
 /** Submit result for opponent confirmation; does not update ratings. */
 export async function submitMatchForConfirmation(divisionId, player1Id, player2Id, sets1, sets2, submittedBy) {
   if (import.meta.env.VITE_API_URL) {
-    return leagueApi.submitMatchForConfirmation(divisionId, player1Id, player2Id, sets1, sets2, submittedBy)
+    try {
+      return await leagueApi.submitMatchForConfirmation(divisionId, player1Id, player2Id, sets1, sets2, submittedBy)
+    } catch (error) {
+      // Fail-open to direct Supabase write if API is temporarily unreachable.
+      if (!isNetworkFetchError(error)) throw error
+      console.warn('[api-fallback] submitMatchForConfirmation via Supabase:', error?.message || error)
+    }
   }
   let existing = null
   const { data: r1 } = await supabase
