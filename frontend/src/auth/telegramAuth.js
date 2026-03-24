@@ -94,8 +94,7 @@ export async function requestMagicLink(email) {
   try {
     window.localStorage.setItem(webStorageKey, cleanEmail)
   } catch (_) {}
-  // Use Vite BASE_URL so GitHub Pages subpath deployments redirect correctly.
-  const redirectTo = new URL(import.meta.env.BASE_URL || '/', window.location.origin).toString()
+  const redirectTo = window.location.origin
   const { error } = await sb.auth.signInWithOtp({
     email: cleanEmail,
     options: { emailRedirectTo: redirectTo },
