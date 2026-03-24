@@ -27,23 +27,10 @@ export async function saveClientSession(clientData, playerId = null, platform = 
 }
 
 export async function getPlayerByTelegramId(telegramId) {
-  if (import.meta.env.VITE_API_URL) {
-    return leagueApi.getMyPlayer()
-  }
   const { data, error } = await supabase
     .from('players')
     .select('*')
     .eq('telegram_id', telegramId)
-    .maybeSingle()
-  if (error) throw error
-  return data
-}
-
-export async function getPlayerById(playerId) {
-  const { data, error } = await supabase
-    .from('players')
-    .select('*')
-    .eq('id', playerId)
     .maybeSingle()
   if (error) throw error
   return data

@@ -1,6 +1,6 @@
 """
 FastAPI dependencies: Supabase client, optional API key, current player (IDOR protection).
-Supports Bearer JWT (telegram/web auth).
+Supports both Bearer JWT (from /auth/telegram) and legacy X-Player-Id.
 """
 import os
 from pathlib import Path
@@ -13,6 +13,9 @@ from supabase import Client, create_client
 
 # Security scheme for OpenAPI/Swagger: enables "Authorize" and X-API-Key in /docs
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False, scheme_name="ApiKey")
+# Identity of the caller for access control: only this player's resources may be accessed
+player_id_header = "X-Player-Id"
+
 # Load .env from api/ or project root
 _env_path = Path(__file__).resolve().parent / ".env"
 if _env_path.exists():
@@ -64,18 +67,23 @@ def _player_id_from_bearer(authorization: Optional[str]) -> Optional[str]:
 
 def get_current_player_id(
     authorization: Optional[str] = Header(None),
+    x_player_id: Optional[str] = Header(None, alias=player_id_header),
 ) -> Optional[str]:
-    """Return current player ID from Bearer JWT."""
-    return _player_id_from_bearer(authorization)
+    """Return current player ID: from Bearer JWT first, else from X-Player-Id header."""
+    pid = _player_id_from_bearer(authorization)
+    if pid is not None:
+        return pid
+    s = (x_player_id or "").strip()
+    return s if s else None
 
 
 def require_current_player_id(
     current: Optional[str] = Depends(get_current_player_id),
 ) -> str:
-    """Require Bearer token identity for endpoints that need authenticated actor."""
+    """Require X-Player-Id for endpoints that must know the actor (access control)."""
     if not current:
         raise HTTPException(
-            status_code=401,
-            detail="Authorization Bearer token required for this action",
+            status_code=403,
+            detail="X-Player-Id required for this action",
         )
     return current

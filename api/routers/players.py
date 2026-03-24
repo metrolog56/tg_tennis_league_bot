@@ -28,12 +28,12 @@ def get_player_by_telegram_id(
     current_player_id=Depends(get_current_player_id),
 ):
     """Get player by telegram_id. Returns single player or null.
-    When telegram_id is provided: only returns the player if it is the current caller's player (Bearer token).
+    When telegram_id is provided: only returns the player if it is the current caller's player (X-Player-Id).
     """
     if telegram_id is None:
         return None
     if current_player_id is None:
-        raise HTTPException(status_code=401, detail="Authorization Bearer token required to request player by telegram_id")
+        raise HTTPException(status_code=403, detail="X-Player-Id required to request player by telegram_id")
     r = supabase.table("players").select("*").eq("telegram_id", telegram_id).execute()
     if not r.data or len(r.data) == 0:
         return None
@@ -41,18 +41,6 @@ def get_player_by_telegram_id(
     if player.get("id") != current_player_id:
         raise HTTPException(status_code=403, detail="Access denied: only your own player can be requested by telegram_id")
     return player
-
-
-@router.get("/me")
-def get_my_player(
-    supabase=Depends(get_supabase),
-    current_player_id=Depends(require_current_player_id),
-):
-    """Get current caller profile resolved by Bearer token."""
-    r = supabase.table("players").select("*").eq("id", current_player_id).execute()
-    if not r.data or len(r.data) == 0:
-        raise HTTPException(status_code=404, detail="Player not found")
-    return r.data[0]
 
 
 @router.get("/rating")
@@ -91,7 +79,7 @@ def update_player_name(
     supabase=Depends(get_supabase),
     current_player_id=Depends(require_current_player_id),
 ):
-    """Update player name. Caller may only update their own player."""
+    """Update player name. Caller may only update their own player (X-Player-Id must match player_id)."""
     if current_player_id != player_id:
         raise HTTPException(status_code=403, detail="Access denied: you can only update your own player")
     name = (body.name or "").strip()

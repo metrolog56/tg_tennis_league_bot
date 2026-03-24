@@ -100,13 +100,7 @@ WEBAPP_URL=https://yourusername.github.io/репозиторий/tennis-league/
 ```env
 VITE_SUPABASE_URL=https://xxxxx.supabase.co
 VITE_SUPABASE_ANON_KEY=ваш_anon_ключ
-VITE_API_URL=https://your-api.example.com
-VITE_TELEGRAM_BOT_NAME=@your_bot
 ```
-
-Для web-first входа включите **Supabase Auth (Email / Magic Link)** и примените миграцию
-`database/migrations/014_players_web_auth.sql` (поля `players.auth_user_id`, `players.email`).
-Пошаговый чек-лист выката: `docs/WEB_FIRST_ROLLOUT.md`.
 
 ---
 
@@ -139,7 +133,7 @@ uvicorn api.main:app --reload
 
 Переменные окружения — те же, что у бота (`SUPABASE_URL`, `SUPABASE_KEY`). В API в **`SUPABASE_KEY`** должен быть ключ **service_role** (Supabase → Settings → API → service_role secret), не anon: мутации и проверки доступа выполняются от имени backend. Фронт использует только **anon** ключ (Settings → API → anon public) в своих переменных `VITE_SUPABASE_*`.
 
-Опционально можно задать **`API_KEY`** — тогда запросы к API должны содержать заголовок `X-API-Key`. Для запросов из браузера (фронт, Mini App) задайте **`CORS_ORIGINS`** — через запятую список доверенных origin'ов (например `https://metrolog56.github.io,https://backup.metrolog56.ru,http://localhost:5173`). Для защиты от IDOR чувствительные операции требуют заголовок **`Authorization: Bearer <JWT>`**; идентичность игрока берётся только из токена (Bearer-only контракт). См. [docs/SECURITY_OWASP_ANALYSIS.md](docs/SECURITY_OWASP_ANALYSIS.md).
+Опционально можно задать **`API_KEY`** — тогда запросы к API должны содержать заголовок `X-API-Key`. Для запросов из браузера (фронт, Mini App) задайте **`CORS_ORIGINS`** — через запятую список доверенных origin'ов (например `http://localhost:5173` для разработки и URL фронта для продакшена). Для защиты от IDOR чувствительные операции требуют заголовок **`X-Player-Id`** (идентификатор игрока от имени которого выполняется запрос): обновление имени игрока, запрос pending-матчей, подтверждение/отклонение матча, уведомление соперника и т.д. См. [docs/SECURITY_OWASP_ANALYSIS.md](docs/SECURITY_OWASP_ANALYSIS.md).
 
 **Секреты в production:** в production обязательно задайте **`API_KEY`** (иначе проверка по X-API-Key отключена и API доступен без ключа). Если используете мгновенные уведомления — задайте **`NOTIFY_SECRET`** (общий с ботом), иначе возможна подделка запросов к боту и массовая отправка уведомлений.
 
@@ -153,17 +147,7 @@ uvicorn api.main:app --reload
 
 ---
 
-## 5. Web-first хостинг frontend (рекомендуется)
-
-Для доступности в РФ лучше использовать Cloudflare Pages или Vercel + собственный домен.
-
-1. Подключите репозиторий к Cloudflare Pages/Vercel.
-2. Build command: `npm ci && npm run build`, output: `frontend/dist`.
-3. Добавьте env vars из `frontend/.env.example` + `VITE_API_URL`.
-4. Подключите домен `app.<ваш-домен>` и резервный `backup.<ваш-домен>`.
-5. В `CORS_ORIGINS` API добавьте оба домена.
-
-## 5.1. GitHub Pages для Mini App (дополнительно)
+## 5. Настроить GitHub Pages для frontend
 
 1. В репозитории на GitHub: **Settings → Pages**.
 2. В разделе **Build and deployment** выберите **Source: GitHub Actions**.
@@ -177,7 +161,7 @@ uvicorn api.main:app --reload
 
 ---
 
-## 5.2. Разработка: тесты и Swagger
+## 5.1. Разработка: тесты и Swagger
 
 **Тесты**
 

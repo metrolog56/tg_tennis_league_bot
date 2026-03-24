@@ -1,12 +1,11 @@
 """
 IDOR / access control tests (SECURITY_OWASP_ANALYSIS §2).
-Endpoints must verify caller identity from Bearer JWT matches resource ownership/participant checks.
+Endpoints that act on player_id or match_id must verify X-Player-Id matches the resource owner/participant.
 """
 import sys
 from typing import Optional
 from unittest.mock import MagicMock, patch
 
-import jwt
 import pytest
 from fastapi.testclient import TestClient
 
@@ -21,28 +20,26 @@ MATCH_ID = "00000000-0000-0000-0000-000000000010"
 def _auth_headers(api_key: str = "secret123", player_id: Optional[str] = None):
     h = {"X-API-Key": api_key}
     if player_id:
-        h["Authorization"] = f"Bearer {jwt.encode({'player_id': player_id}, 'test-jwt-secret-at-least-32-characters-long', algorithm='HS256')}"
+        h["X-Player-Id"] = player_id
     return h
 
 
 # --- PATCH /players/{player_id} ---
 
 
-def test_patch_players_without_bearer_returns_401(client, monkeypatch):
+def test_patch_players_without_x_player_id_returns_403(client, monkeypatch):
     monkeypatch.setenv("API_KEY", "secret123")
-    monkeypatch.setenv("JWT_SECRET", "test-jwt-secret-at-least-32-characters-long")
     r = client.patch(
         f"/players/{PLAYER_A}",
         json={"name": "New Name"},
         headers=_auth_headers(),
     )
-    assert r.status_code == 401
-    assert "Bearer" in (r.json() or {}).get("detail", "")
+    assert r.status_code == 403
+    assert "X-Player-Id" in (r.json() or {}).get("detail", "")
 
 
 def test_patch_players_wrong_player_id_returns_403(client, monkeypatch):
     monkeypatch.setenv("API_KEY", "secret123")
-    monkeypatch.setenv("JWT_SECRET", "test-jwt-secret-at-least-32-characters-long")
     r = client.patch(
         f"/players/{PLAYER_A}",
         json={"name": "New Name"},
@@ -55,37 +52,34 @@ def test_patch_players_wrong_player_id_returns_403(client, monkeypatch):
 # --- GET /players?telegram_id=... ---
 
 
-def test_get_players_by_telegram_id_without_bearer_returns_401(client, monkeypatch):
+def test_get_players_by_telegram_id_without_x_player_id_returns_403(client, monkeypatch):
     monkeypatch.setenv("API_KEY", "secret123")
-    monkeypatch.setenv("JWT_SECRET", "test-jwt-secret-at-least-32-characters-long")
     r = client.get("/players?telegram_id=123", headers=_auth_headers())
-    assert r.status_code == 401
-    assert "Bearer" in (r.json() or {}).get("detail", "")
+    assert r.status_code == 403
+    assert "X-Player-Id" in (r.json() or {}).get("detail", "")
 
 
 # --- GET /matches/pending ---
 
 
-def test_get_matches_pending_without_bearer_returns_401(client, monkeypatch):
+def test_get_matches_pending_without_x_player_id_returns_403(client, monkeypatch):
     monkeypatch.setenv("API_KEY", "secret123")
-    monkeypatch.setenv("JWT_SECRET", "test-jwt-secret-at-least-32-characters-long")
     r = client.get(
-        "/matches/pending",
+        f"/matches/pending?player_id={PLAYER_A}",
         headers=_auth_headers(),
     )
-    assert r.status_code == 401
-    assert "Bearer" in (r.json() or {}).get("detail", "")
+    assert r.status_code == 403
+    assert "X-Player-Id" in (r.json() or {}).get("detail", "")
 
 
 def test_get_matches_pending_player_id_mismatch_returns_403(client, monkeypatch):
     monkeypatch.setenv("API_KEY", "secret123")
-    monkeypatch.setenv("JWT_SECRET", "test-jwt-secret-at-least-32-characters-long")
     r = client.get(
-        "/matches/pending",
+        f"/matches/pending?player_id={PLAYER_A}",
         headers=_auth_headers(player_id=PLAYER_B),
     )
-    # no mismatch possible via query in bearer-only mode; endpoint uses token identity
-    assert r.status_code == 200
+    assert r.status_code == 403
+    assert "pending" in (r.json() or {}).get("detail", "").lower() or "access denied" in (r.json() or {}).get("detail", "").lower()
 
 
 # --- POST /matches/submit-for-confirmation ---
@@ -93,7 +87,6 @@ def test_get_matches_pending_player_id_mismatch_returns_403(client, monkeypatch)
 
 def test_submit_for_confirmation_submitted_by_mismatch_returns_403(client, monkeypatch):
     monkeypatch.setenv("API_KEY", "secret123")
-    monkeypatch.setenv("JWT_SECRET", "test-jwt-secret-at-least-32-characters-long")
     r = client.post(
         "/matches/submit-for-confirmation",
         json={
@@ -102,11 +95,12 @@ def test_submit_for_confirmation_submitted_by_mismatch_returns_403(client, monke
             "player2_id": PLAYER_B,
             "sets_player1": 2,
             "sets_player2": 1,
-            "submitted_by": PLAYER_A,  # ignored in bearer-only mode
+            "submitted_by": PLAYER_A,
         },
         headers=_auth_headers(player_id=PLAYER_B),
     )
-    assert r.status_code != 403
+    assert r.status_code == 403
+    assert "submitted_by" in (r.json() or {}).get("detail", "").lower() or "access denied" in (r.json() or {}).get("detail", "").lower()
 
 
 # --- POST /matches/{match_id}/notify-pending ---
@@ -114,7 +108,6 @@ def test_submit_for_confirmation_submitted_by_mismatch_returns_403(client, monke
 
 def test_notify_pending_caller_not_participant_returns_403(client, monkeypatch):
     monkeypatch.setenv("API_KEY", "secret123")
-    monkeypatch.setenv("JWT_SECRET", "test-jwt-secret-at-least-32-characters-long")
     mock_sb = _make_mock_supabase()
     mock_sb.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [
         {"player1_id": PLAYER_A, "player2_id": PLAYER_B}
@@ -138,7 +131,6 @@ def test_notify_pending_caller_not_participant_returns_403(client, monkeypatch):
 
 def test_confirm_confirmed_by_mismatch_returns_403(client, monkeypatch):
     monkeypatch.setenv("API_KEY", "secret123")
-    monkeypatch.setenv("JWT_SECRET", "test-jwt-secret-at-least-32-characters-long")
     mock_sb = _make_mock_supabase()
     mock_sb.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [
         {
@@ -154,10 +146,11 @@ def test_confirm_confirmed_by_mismatch_returns_403(client, monkeypatch):
         tc = TestClient(app)
         r = tc.post(
             f"/matches/{MATCH_ID}/confirm",
-            json={"confirmed_by_player_id": PLAYER_B},  # ignored in bearer-only mode
+            json={"confirmed_by_player_id": PLAYER_B},
             headers=_auth_headers(player_id=PLAYER_A),
         )
-    assert r.status_code == 400
+    assert r.status_code == 403
+    assert "confirmed_by_player_id" in (r.json() or {}).get("detail", "").lower() or "access denied" in (r.json() or {}).get("detail", "").lower()
 
 
 # --- POST /matches/{match_id}/reject ---
@@ -165,7 +158,6 @@ def test_confirm_confirmed_by_mismatch_returns_403(client, monkeypatch):
 
 def test_reject_rejected_by_mismatch_returns_403(client, monkeypatch):
     monkeypatch.setenv("API_KEY", "secret123")
-    monkeypatch.setenv("JWT_SECRET", "test-jwt-secret-at-least-32-characters-long")
     mock_sb = _make_mock_supabase()
     mock_sb.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [
         {
@@ -181,18 +173,18 @@ def test_reject_rejected_by_mismatch_returns_403(client, monkeypatch):
         tc = TestClient(app)
         r = tc.post(
             f"/matches/{MATCH_ID}/reject",
-            json={"rejected_by_player_id": PLAYER_B},  # ignored in bearer-only mode
+            json={"rejected_by_player_id": PLAYER_B},
             headers=_auth_headers(player_id=PLAYER_A),
         )
-    assert r.status_code == 400
+    assert r.status_code == 403
+    assert "rejected_by_player_id" in (r.json() or {}).get("detail", "").lower() or "access denied" in (r.json() or {}).get("detail", "").lower()
 
 
-# --- GET /matches/{match_id} with Bearer: only participants ---
+# --- GET /matches/{match_id} with X-Player-Id: only participants ---
 
 
 def test_get_match_by_id_non_participant_returns_403(client, monkeypatch):
     monkeypatch.setenv("API_KEY", "secret123")
-    monkeypatch.setenv("JWT_SECRET", "test-jwt-secret-at-least-32-characters-long")
     mock_sb = _make_mock_supabase()
     mock_sb.table.return_value.select.return_value.eq.return_value.execute.side_effect = [
         MagicMock(data=[{"id": MATCH_ID, "player1_id": PLAYER_A, "player2_id": PLAYER_B}]),

@@ -8,7 +8,7 @@
 2. **Import** → **File** → выберите `Tennis-League-API.postman_collection.json`.
 3. Коллекция появится в боковой панели.
 
-Альтернатива: импорт из OpenAPI — в Postman **Import** → **Link** и укажите `http://localhost:8000/openapi.json` (при запущенном API). После импорта нужно вручную добавить заголовки `X-API-Key`, `Authorization: Bearer {{access_token}}` и примеры тел запросов.
+Альтернатива: импорт из OpenAPI — в Postman **Import** → **Link** и укажите `http://localhost:8000/openapi.json` (при запущенном API). После импорта нужно вручную добавить заголовки `X-API-Key`, `X-Player-Id` и примеры тел запросов.
 
 ## Переменные коллекции
 
@@ -18,7 +18,8 @@
 |----------------|----------|
 | `baseUrl`      | Базовый URL API, по умолчанию `http://localhost:8000`. |
 | `apiKey`       | Значение заголовка `X-API-Key`. Нужен, если на сервере задан `API_KEY`. |
-| `access_token` | JWT после успешного `POST /auth/telegram` или `POST /auth/web` (заголовок `Authorization: Bearer {{access_token}}`). |
+| `playerId`     | UUID игрока для заголовка `X-Player-Id`. Обязателен для эндпоинтов, требующих текущего игрока (матчи, заявки на игру, обновление имени). |
+| `access_token` | JWT после успешного `POST /auth/telegram`. Можно использовать вместо `X-Player-Id` (заголовок `Authorization: Bearer {{access_token}}`). |
 | `divisionId`   | UUID дивизиона — для запросов к дивизиону и при submit/confirm матча. |
 | `seasonId`     | UUID сезона — для запросов по сезону и фильтра заявок на игру. |
 | `matchId`      | UUID матча — для confirm/reject/notify. |

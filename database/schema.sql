@@ -6,9 +6,7 @@
 -- Игроки
 CREATE TABLE players (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    telegram_id BIGINT UNIQUE,
-    auth_user_id UUID UNIQUE,
-    email VARCHAR(255),
+    telegram_id BIGINT UNIQUE NOT NULL,
     telegram_username VARCHAR(255),
     name VARCHAR(255) NOT NULL,
     rating DECIMAL(10,2) DEFAULT 100.00,
@@ -81,7 +79,6 @@ CREATE TABLE rating_history (
 
 -- Индексы для частых запросов
 CREATE INDEX idx_players_telegram_id ON players(telegram_id);
-CREATE INDEX idx_players_auth_user_id ON players(auth_user_id);
 CREATE INDEX idx_players_rating ON players(rating DESC);
 CREATE INDEX idx_seasons_year_month ON seasons(year, month);
 CREATE INDEX idx_divisions_season_id ON divisions(season_id);
