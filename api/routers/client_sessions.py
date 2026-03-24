@@ -41,7 +41,7 @@ def create_client_session(
         "platform": body.platform,
         "player_id": current_player_id,
     }
-    r = supabase.table("client_sessions").insert(row).execute()
+    r = supabase.table("client_sessions").insert(row).select("id").execute()
     if r.data and len(r.data) > 0:
         return {"id": r.data[0]["id"]}
     return {}

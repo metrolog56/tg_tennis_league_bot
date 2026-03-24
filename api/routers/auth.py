@@ -43,7 +43,7 @@ def _get_jwt_secret() -> str:
 
 
 @router.post("/telegram")
-@limiter.limit("30/minute")
+@limiter.limit("10/minute")
 def auth_telegram(
     request: Request,
     body: TelegramAuthBody,
@@ -102,7 +102,7 @@ def auth_telegram(
 
 
 @router.post("/web")
-@limiter.limit("30/minute")
+@limiter.limit("10/minute")
 def auth_web(
     request: Request,
     body: WebAuthBody,

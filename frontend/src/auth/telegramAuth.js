@@ -12,7 +12,6 @@ let authUserId = null
 let authType = null
 
 const webStorageKey = 'web-auth-email'
-let cachedWebSupabaseClient = null
 
 export function getAuthToken() {
   return authToken
@@ -82,12 +81,10 @@ export async function exchangeInitDataForToken(initData) {
 }
 
 function webSupabaseClient() {
-  if (cachedWebSupabaseClient) return cachedWebSupabaseClient
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY
   if (!supabaseUrl || !supabaseKey) return null
-  cachedWebSupabaseClient = createClient(supabaseUrl, supabaseKey)
-  return cachedWebSupabaseClient
+  return createClient(supabaseUrl, supabaseKey)
 }
 
 export async function requestMagicLink(email) {
